@@ -2,25 +2,146 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0b0f1a;
+  --foreground: #f1f5f9;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s, color 0.3s;
 }
+
+@layer base {
+  * {
+    @apply border-slate-200 dark:border-slate-800;
+  }
+}
+
+html, body {
+  background: #020617;
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* App background: slate-950 → zinc-900 → slate-950 */
+.app-bg {
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(56,189,248,0.07), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(168,85,247,0.06), transparent 60%),
+    linear-gradient(to bottom right, #020617 0%, #18181b 50%, #020617 100%);
+  transition: background 0.3s;
+}
+
+/* Smooth horizontal scroll on touch */
+.scroll-x { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+
+/* Discrete scrollbar */
+.scroll-x::-webkit-scrollbar, .scroll-y::-webkit-scrollbar { height: 8px; width: 8px; }
+.scroll-x::-webkit-scrollbar-track, .scroll-y::-webkit-scrollbar-track { background: transparent; }
+.scroll-x::-webkit-scrollbar-thumb, .scroll-y::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08); border-radius: 999px;
+}
+.scroll-x::-webkit-scrollbar-thumb:hover, .scroll-y::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.16);
+}
+
+/* Glass surface utilities */
+.glass {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.glass-strong {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+}
+
+/* Aurora orb behind hero KPI */
+.orb {
+  position:absolute; inset:auto -40% -60% auto; width:520px; height:520px; pointer-events:none;
+  background: radial-gradient(circle at center, rgba(56,189,248,0.22), transparent 60%);
+  filter: blur(20px);
+}
+
+/* Focus ring */
+:where(button, a, select, input, textarea):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(56,189,248,0.45);
+  border-radius: 12px;
+}
+
+/* Tabular numerals for currency */
+.num { font-variant-numeric: tabular-nums; }
+
+/* Subtle row stripe shimmer on hover */
+.row-hover:hover td { background: rgba(255,255,255,0.03); }
+
+/* Animated entry */
+@keyframes rise { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+.rise { animation: rise 400ms ease-out both; }
+
+/* Sticky header inside tables */
+.sticky-h th { position: sticky; top: 0; z-index: 5; }
+
+/* Hide scrollbar but keep functionality */
+.no-scrollbar::-webkit-scrollbar { display:none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* ─── LIGHT MODE OVERRIDES ──────────────────────────────────────── */
+html:not(.dark) {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  color-scheme: light;
+}
+
+html:not(.dark), html:not(.dark) body {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .app-bg {
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(56,189,248,0.06), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(168,85,247,0.05), transparent 60%),
+    linear-gradient(to bottom right, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%) !important;
+}
+
+html:not(.dark) .glass {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.04) !important;
+}
+html:not(.dark) .glass-strong {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06) !important;
+}
+
+html:not(.dark) .text-zinc-50 { color: #0f172a !important; }
+html:not(.dark) .text-zinc-100 { color: #1e293b !important; }
+html:not(.dark) .text-zinc-200 { color: #334155 !important; }
+html:not(.dark) .text-zinc-300 { color: #475569 !important; }
+html:not(.dark) .text-zinc-400 { color: #64748b !important; }
+html:not(.dark) .text-zinc-500 { color: #94a3b8 !important; }
+
+html:not(.dark) .bg-zinc-950\/80 { background-color: rgba(255, 255, 255, 0.9) !important; }
+
+html:not(.dark) select,
+html:not(.dark) input,
+html:not(.dark) textarea {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .row-hover:hover td { background: rgba(15, 23, 42, 0.03) !important; }
