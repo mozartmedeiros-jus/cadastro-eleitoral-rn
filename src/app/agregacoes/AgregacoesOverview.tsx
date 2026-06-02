@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db, makeRowId } from '@/lib/firebase';
-import { BarChart2, ChevronDown } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 interface SecaoDetalhe { secao: string; aptos: number; }
 interface LocationData {
@@ -13,20 +13,20 @@ interface LocationData {
   total_secoes: number;
   secoes_detalhes: SecaoDetalhe[];
 }
-
 interface CicloDoc {
   id: string;
   capitalLimit: number;
   interiorLimit: number;
   savedAt: Date | null;
-  rows: Record<string, { zona?: number | string; municipio?: string; local?: string; agregar?: boolean; total?: number }>;
+  rows: Record<string, { agregar?: boolean; total?: number }>;
 }
 
 function formatNumber(n: number) {
   return new Intl.NumberFormat('pt-BR').format(n || 0);
 }
-
 function padSecao(s: string) { return s.padStart(4, '0'); }
+
+const PAGE_SIZE = 50;
 
 export default function AgregacoesOverview({ initialData }: { initialData: LocationData[] }) {
   const [ciclos, setCiclos] = useState<CicloDoc[]>([]);
@@ -34,6 +34,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
   const [loadingCiclos, setLoadingCiclos] = useState(true);
   const [zonaFilter, setZonaFilter] = useState('');
   const [municipioFilter, setMunicipioFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'ciclos'), snap => {
@@ -53,61 +54,56 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
     return () => unsub();
   }, []);
 
-  // Mapa rowId → item do JSON estático para join
-  const rowMap = useMemo(() =>
-    Object.fromEntries(
-      initialData.map(item => [makeRowId(item.zona, item.municipio, item.local), item])
-    )
-  , [initialData]);
-
   const ciclo = ciclos.find(c => c.id === selectedId) ?? null;
 
-  // Todas as linhas AGREGAR do ciclo, enriquecidas com secoes_detalhes do JSON
-  const baseRows = useMemo(() => {
-    if (!ciclo) return [];
-    return Object.entries(ciclo.rows)
-      .filter(([, r]) => r.agregar === true)
-      .map(([rowId, r]) => ({
-        rowId,
-        zona: r.zona ?? '',
-        municipio: r.municipio ?? '',
-        local: r.local ?? '',
-        total: r.total,
-        secoes_detalhes: rowMap[rowId]?.secoes_detalhes ?? [],
-      }))
-      .sort((a, b) => {
-        const za = Number(a.zona) || 0, zb = Number(b.zona) || 0;
-        if (za !== zb) return za - zb;
-        return a.municipio.localeCompare(b.municipio) || a.local.localeCompare(b.local);
-      });
-  }, [ciclo, rowMap]);
-
-  // Opções de filtro — somente valores presentes no ciclo
+  // Filtros derivados do dataset completo do RN
   const uniqueZonas = useMemo(() =>
-    Array.from(new Set(baseRows.map(r => String(r.zona))))
+    Array.from(new Set(initialData.map(r => String(r.zona))))
       .sort((a, b) => Number(a) - Number(b))
-  , [baseRows]);
+  , [initialData]);
 
   const uniqueMunicipios = useMemo(() => {
-    const source = zonaFilter ? baseRows.filter(r => String(r.zona) === zonaFilter) : baseRows;
-    return Array.from(new Set(source.map(r => r.municipio))).sort((a, b) => a.localeCompare(b));
-  }, [baseRows, zonaFilter]);
+    const src = zonaFilter ? initialData.filter(r => String(r.zona) === zonaFilter) : initialData;
+    return Array.from(new Set(src.map(r => r.municipio))).sort((a, b) => a.localeCompare(b));
+  }, [initialData, zonaFilter]);
 
-  // Linhas após filtros aplicados
-  const agregadoRows = useMemo(() => {
-    let rows = baseRows;
-    if (zonaFilter) rows = rows.filter(r => String(r.zona) === zonaFilter);
-    if (municipioFilter) rows = rows.filter(r => r.municipio === municipioFilter);
-    return rows;
-  }, [baseRows, zonaFilter, municipioFilter]);
+  // Dataset filtrado
+  const filteredData = useMemo(() => {
+    let data = initialData;
+    if (zonaFilter) data = data.filter(r => String(r.zona) === zonaFilter);
+    if (municipioFilter) data = data.filter(r => r.municipio === municipioFilter);
+    return data;
+  }, [initialData, zonaFilter, municipioFilter]);
 
+  // Mapa rowId → campos do ciclo selecionado
+  const cicloMap = useMemo(() => {
+    if (!ciclo) return {} as Record<string, { agregar?: boolean; total?: number }>;
+    return ciclo.rows;
+  }, [ciclo]);
+
+  // KPIs — somente das linhas com agregar=true no ciclo, dentro do filtro aplicado
   const kpis = useMemo(() => {
-    const secoes = agregadoRows.reduce((s, r) => s + r.secoes_detalhes.length, 0);
-    const secoesAgregadas = agregadoRows.reduce((s, r) => s + (r.total ?? 0), 0);
-    const totalEleitores = agregadoRows.reduce((s, r) =>
-      s + r.secoes_detalhes.reduce((ss, sec) => ss + sec.aptos, 0), 0);
-    return { locais: agregadoRows.length, secoes, secoesAgregadas, totalEleitores };
-  }, [agregadoRows]);
+    if (!ciclo) return null;
+    const agregadoRows = filteredData.filter(r =>
+      cicloMap[makeRowId(r.zona, r.municipio, r.local)]?.agregar === true
+    );
+    return {
+      locais: agregadoRows.length,
+      secoes: agregadoRows.reduce((s, r) => s + (r.secoes_detalhes?.length ?? 0), 0),
+      secoesAgregadas: agregadoRows.reduce((s, r) => {
+        const rid = makeRowId(r.zona, r.municipio, r.local);
+        return s + (cicloMap[rid]?.total ?? 0);
+      }, 0),
+      totalEleitores: agregadoRows.reduce((s, r) =>
+        s + (r.secoes_detalhes ?? []).reduce((ss, sec) => ss + sec.aptos, 0), 0),
+    };
+  }, [ciclo, filteredData, cicloMap]);
+
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE) || 1;
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredData.slice(start, start + PAGE_SIZE);
+  }, [filteredData, currentPage]);
 
   const getBadgeClass = (aptos: number, limit: number) => {
     if (aptos <= 50) return 'bg-danger-soft border-danger-border text-danger';
@@ -119,7 +115,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
     <div className="min-h-full bg-bg text-ink pb-14">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-surface border-b border-border">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[11px] text-ink-3">
               <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
@@ -131,41 +127,35 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             </h1>
           </div>
 
-          {/* Filtros + seletor de ciclo — ordem: ZONA · MUNICÍPIO · CICLO */}
+          {/* Filtros — ZONA · MUNICÍPIO · CICLO */}
           <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
-            {/* ZONA — só quando ciclo selecionado */}
-            {ciclo && (
-              <div className="relative">
-                <select
-                  value={zonaFilter}
-                  onChange={e => { setZonaFilter(e.target.value); setMunicipioFilter(''); }}
-                  className="ds-select h-9 pl-3 pr-8 min-w-[110px] text-[13px]"
-                >
-                  <option value="">Todas as zonas</option>
-                  {uniqueZonas.map(z => <option key={z} value={z}>Zona {z}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
-              </div>
-            )}
-            {/* MUNICÍPIO — só quando ciclo selecionado */}
-            {ciclo && (
-              <div className="relative">
-                <select
-                  value={municipioFilter}
-                  onChange={e => setMunicipioFilter(e.target.value)}
-                  className="ds-select h-9 pl-3 pr-8 min-w-[160px] text-[13px]"
-                >
-                  <option value="">Todos os municípios</option>
-                  {uniqueMunicipios.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
-              </div>
-            )}
-            {/* CICLO */}
+            <div className="relative">
+              <select
+                value={zonaFilter}
+                onChange={e => { setZonaFilter(e.target.value); setMunicipioFilter(''); setCurrentPage(1); }}
+                className="ds-select h-9 pl-3 pr-8 min-w-[120px] text-[13px]"
+              >
+                <option value="">Todas as zonas</option>
+                {uniqueZonas.map(z => <option key={z} value={z}>Zona {z}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+            </div>
+            <div className="relative">
+              <select
+                value={municipioFilter}
+                onChange={e => { setMunicipioFilter(e.target.value); setCurrentPage(1); }}
+                className="ds-select h-9 pl-3 pr-8 min-w-[170px] text-[13px]"
+              >
+                <option value="">Todos os municípios</option>
+                {uniqueMunicipios.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+            </div>
+            <div className="w-px h-6 bg-border" />
             <div className="relative">
               <select
                 value={selectedId}
-                onChange={e => { setSelectedId(e.target.value); setZonaFilter(''); setMunicipioFilter(''); }}
+                onChange={e => { setSelectedId(e.target.value); setCurrentPage(1); }}
                 disabled={loadingCiclos}
                 className="ds-select h-9 pl-3 pr-9 min-w-[140px] text-[13px] font-semibold"
               >
@@ -179,29 +169,20 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
       </header>
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        {!ciclo ? (
-          <div className="ds-card p-14 text-center text-ink-3 text-[13.5px]">
-            Selecione um ciclo no cabeçalho para visualizar os dados de agregação.
-          </div>
-        ) : (
+
+        {/* KPIs — só quando ciclo selecionado */}
+        {kpis && (
           <>
-            {/* Parâmetros do ciclo */}
-            <div className="flex items-center gap-4 mb-4 text-[12.5px] text-ink-3">
-              <span className="font-bold uppercase tracking-[0.05em]">Parâmetros:</span>
-              <span>Capital <strong className="text-ink">{ciclo.capitalLimit}</strong></span>
-              <span>Interior <strong className="text-ink">{ciclo.interiorLimit}</strong></span>
-              {ciclo.savedAt && (
-                <span className="ml-auto">
-                  Salvo em <strong className="text-ink">
-                    {ciclo.savedAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </strong>
+            <div className="flex items-baseline gap-3 mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">
+                Resumo do ciclo {selectedId}
+              </h2>
+              {ciclo?.savedAt && (
+                <span className="text-[11px] text-ink-4">
+                  salvo em {ciclo.savedAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  {' · '}Capital {ciclo.capitalLimit} · Interior {ciclo.interiorLimit}
                 </span>
               )}
-            </div>
-
-            {/* KPIs */}
-            <div className="flex items-baseline gap-3 mb-3">
-              <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">Resumo do ciclo</h2>
               <span className="flex-1 h-px bg-border" />
             </div>
             <section className="ds-card overflow-hidden mb-6">
@@ -219,70 +200,107 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                 ))}
               </div>
             </section>
-
-            {/* Tabela de locais com seções */}
-            <div className="flex items-baseline gap-3 mb-3">
-              <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">Locais e seções</h2>
-              <span className="flex-1 h-px bg-border" />
-            </div>
-
-            {agregadoRows.length === 0 ? (
-              <div className="ds-card p-10 text-center text-ink-3 text-[13.5px]">
-                Nenhum local marcado como AGREGAR neste ciclo.
-              </div>
-            ) : (
-              <section className="ds-card overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left">
-                    <thead>
-                      <tr className="bg-surface-2 border-b border-border-strong [&>th]:px-4 [&>th]:py-3 [&>th]:text-[10px] [&>th]:font-bold [&>th]:uppercase [&>th]:tracking-[0.07em] [&>th]:text-ink-3 [&>th]:whitespace-nowrap">
-                        <th className="text-center">Zona</th>
-                        <th>Município</th>
-                        <th>Local de Votação</th>
-                        <th>Seções <span className="text-ink-4 font-medium normal-case tracking-normal">(seção · eleitores)</span></th>
-                        <th className="text-center">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm text-ink-2">
-                      {agregadoRows.map(row => {
-                        const isCapital = row.municipio.trim().toUpperCase() === 'NATAL';
-                        const limit = isCapital ? ciclo.capitalLimit : ciclo.interiorLimit;
-                        return (
-                          <tr key={row.rowId} className="border-b border-border-faint">
-                            <td className="px-4 py-3 text-center font-semibold text-ink-2 num">{row.zona}</td>
-                            <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap">
-                              {row.municipio}
-                              <div className="text-[10px] font-medium text-ink-4">{isCapital ? 'capital' : 'interior'}</div>
-                            </td>
-                            <td className="px-4 py-3 font-medium text-ink">{row.local}</td>
-                            <td className="px-4 py-2.5">
-                              <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
-                                {row.secoes_detalhes.map(s => (
-                                  <span
-                                    key={s.secao}
-                                    className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap ${getBadgeClass(s.aptos, limit)}`}
-                                    title={`Seção ${padSecao(s.secao)} · ${formatNumber(s.aptos)} eleitores`}
-                                  >
-                                    <span className="font-bold">{padSecao(s.secao)}</span>
-                                    <span className="opacity-40">·</span>
-                                    <span className="font-semibold">{formatNumber(s.aptos)}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center font-bold text-ink num">
-                              {row.total !== undefined ? row.total : <span className="text-ink-4">—</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
           </>
         )}
+
+        {/* Tabela */}
+        <div className="flex items-baseline gap-3 mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">
+            Locais de votação
+          </h2>
+          <span className="text-[11.5px] text-ink-4">
+            {formatNumber(filteredData.length)} locais
+            {ciclo ? ` · ciclo ${selectedId} aplicado` : ''}
+          </span>
+          <span className="flex-1 h-px bg-border" />
+        </div>
+
+        <section className="ds-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-surface-2 border-b border-border-strong [&>th]:px-4 [&>th]:py-3 [&>th]:text-[10px] [&>th]:font-bold [&>th]:uppercase [&>th]:tracking-[0.07em] [&>th]:text-ink-3 [&>th]:whitespace-nowrap">
+                  <th className="text-center">Zona</th>
+                  <th>Município</th>
+                  <th>Local de Votação</th>
+                  <th>Seções <span className="text-ink-4 font-medium normal-case tracking-normal">(seção · eleitores)</span></th>
+                  {ciclo && <th className="text-center">Agregar</th>}
+                  {ciclo && <th className="text-center">Total</th>}
+                </tr>
+              </thead>
+              <tbody className="text-sm text-ink-2">
+                {paginatedData.map(row => {
+                  const rowId = makeRowId(row.zona, row.municipio, row.local);
+                  const cicloFields = cicloMap[rowId];
+                  const isCapital = row.municipio.trim().toUpperCase() === 'NATAL';
+                  const limit = ciclo
+                    ? (isCapital ? ciclo.capitalLimit : ciclo.interiorLimit)
+                    : 200;
+                  return (
+                    <tr key={rowId} className="border-b border-border-faint hover:bg-surface-2 transition-colors">
+                      <td className="px-4 py-3 text-center font-semibold text-ink-2 num">{row.zona}</td>
+                      <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap">
+                        {row.municipio}
+                        <div className="text-[10px] font-medium text-ink-4">{isCapital ? 'capital' : 'interior'}</div>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-ink">{row.local}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
+                          {(row.secoes_detalhes ?? []).map(s => (
+                            <span
+                              key={s.secao}
+                              className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap ${getBadgeClass(s.aptos, limit)}`}
+                            >
+                              <span className="font-bold">{padSecao(s.secao)}</span>
+                              <span className="opacity-40">·</span>
+                              <span className="font-semibold">{formatNumber(s.aptos)}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      {ciclo && (
+                        <td className="px-4 py-3 text-center">
+                          {cicloFields?.agregar
+                            ? <Check size={15} className="text-accent inline" />
+                            : <span className="text-ink-4">—</span>}
+                        </td>
+                      )}
+                      {ciclo && (
+                        <td className="px-4 py-3 text-center font-bold num text-ink">
+                          {cicloFields?.total !== undefined ? cicloFields.total : <span className="text-ink-4">—</span>}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="px-4 py-3 bg-surface-2 border-t border-border flex items-center justify-between gap-4 flex-wrap">
+              <span className="text-[12.5px] text-ink-3">
+                Página <strong className="text-ink">{currentPage}</strong> de <strong className="text-ink">{totalPages}</strong>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className="inline-flex items-center gap-1 h-8 px-3 rounded-[4px] bg-surface border border-border-strong text-[12.5px] font-semibold text-ink-2 hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={14} /> Anterior
+                </button>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className="inline-flex items-center gap-1 h-8 px-3 rounded-[4px] bg-surface border border-border-strong text-[12.5px] font-semibold text-ink-2 hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Próxima <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
