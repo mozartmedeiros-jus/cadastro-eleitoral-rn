@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────────
+   TRE-RN · Cadastro Eleitoral — Sistema de design institucional
+   Direção: DSGov / gov.br — superfícies planas, borda 1px, verde
+   eleitoral, alto contraste (AA). Sem glass, blur, gradiente ou neon.
+
+   Tema via next-themes (attribute="class"): claro = padrão,
+   escuro = .dark no <html>. Os tokens trocam automaticamente.
+   ─────────────────────────────────────────────────────────────── */
+
+/* Habilita o variant `dark:` baseado na CLASSE .dark (next-themes) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Tokens — CLARO (padrão) ──────────────────────────────────── */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #f7f9fb;
+  --surface-3: #eef2f6;
+
+  --border: #dde3ea;
+  --border-strong: #c7d0da;
+  --border-faint: #e8edf2;
+
+  --ink: #14181d;
+  --ink-2: #46535f;
+  --ink-3: #6b7785;
+  --ink-4: #97a2ae;
+
+  --accent: #1a7a48;
+  --accent-strong: #15633a;
+  --accent-ink: #0e4f2d;
+  --accent-soft: #e8f3ec;
+  --accent-soft-border: #bfe0cc;
+  --accent-on: #ffffff;
+
+  --warn: #b54708;
+  --warn-soft: #fdf3ea;
+  --warn-border: #ecc7a8;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --danger-border: #efc4bf;
+
+  --shadow-menu: 0 6px 20px -6px rgba(20, 30, 45, 0.18);
+}
+
+/* ── Tokens — ESCURO (.dark) ──────────────────────────────────── */
+.dark {
+  --bg: #0e1216;
+  --surface: #161b21;
+  --surface-2: #1b212a;
+  --surface-3: #222a34;
+
+  --border: #2a323c;
+  --border-strong: #3a444f;
+  --border-faint: #222932;
+
+  --ink: #e8edf2;
+  --ink-2: #aab6c2;
+  --ink-3: #7d8b98;
+  --ink-4: #5c6772;
+
+  --accent: #3fae72;
+  --accent-strong: #56be84;
+  --accent-ink: #c7e9d4;
+  --accent-soft: #15281e;
+  --accent-soft-border: #2c5640;
+  --accent-on: #07120b;
+
+  --warn: #e6995a;
+  --warn-soft: #2a1f12;
+  --warn-border: #5a4222;
+  --danger: #e88577;
+  --danger-soft: #2c1714;
+  --danger-border: #5c322c;
+
+  --shadow-menu: 0 8px 26px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Expõe os tokens como utilitários Tailwind ────────────────────
+   Gera bg-*, text-*, border-* etc. que trocam com a classe .dark.
+   Ex.: bg-surface, text-ink, text-ink-3, border-border, text-accent */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-faint: var(--border-faint);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-border: var(--accent-soft-border);
+  --color-accent-on: var(--accent-on);
+
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-border: var(--warn-border);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+
+  --radius-ds-sm: 4px;
+  --radius-ds-md: 6px;
+  --radius-ds-lg: 8px;
+}
+
+/* ── Base ─────────────────────────────────────────────────────── */
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.dark html, .dark body, html.dark, html.dark body { color-scheme: dark; }
+
+body { transition: background-color .18s ease, color .18s ease; }
+
+::selection { background: var(--accent-soft); color: var(--accent); }
+
+/* Numerais tabulares */
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+/* Scrollbars discretas */
+.scroll-x { -webkit-overflow-scrolling: touch; }
+.scroll-x::-webkit-scrollbar, .scroll-y::-webkit-scrollbar { height: 9px; width: 9px; }
+.scroll-x::-webkit-scrollbar-track, .scroll-y::-webkit-scrollbar-track { background: transparent; }
+.scroll-x::-webkit-scrollbar-thumb, .scroll-y::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 999px; border: 2px solid var(--surface);
+}
+
+/* Anel de foco — verde, acessível */
+:where(button, a, select, input, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* Linha-base de hover de tabela */
+.row-hover:hover td { background: var(--surface-2); }
+
+/* Editor numérico inline: esconde os spinners */
+input.ds-num::-webkit-outer-spin-button,
+input.ds-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.ds-num[type="number"] { -moz-appearance: textfield; }
+
+/* Componentes reutilizáveis (camada fina; o resto é utilitário no JSX) */
+@layer components {
+  .ds-card { @apply bg-surface border border-border rounded-[6px]; }
+  .ds-input {
+    @apply h-10 rounded-[6px] bg-surface border border-border-strong text-ink text-sm
+           placeholder:text-ink-4 outline-none transition-colors;
+  }
+  .ds-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .ds-select {
+    @apply h-10 rounded-[6px] bg-surface border border-border-strong text-ink text-sm font-medium
+           appearance-none cursor-pointer outline-none transition-colors;
+  }
+  .ds-select:hover { border-color: var(--accent); }
+  .ds-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+}

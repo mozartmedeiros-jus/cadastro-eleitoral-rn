@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Search, ChevronDown, ChevronUp, Download, 
-  MapPin, Sun, Moon, Monitor, Eye, EyeOff
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Download,
+  MapPin, Sun, Moon, Monitor, Eye, EyeOff, ArrowUpDown,
+  X, BarChart3
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import {
+  collection, doc, onSnapshot, setDoc, serverTimestamp
+} from 'firebase/firestore';
+import { auth, db, makeRowId } from '@/lib/firebase';
+import { useAuth } from '@/lib/AuthContext';
+import AuthButton from '@/components/AuthButton';
 
 interface LocationData {
   zona: number | string;
@@ -30,6 +37,33 @@ function formatPercent(val: number, total: number) {
   return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(pct) + '%';
 }
 
+function getAdministrador(totalSecoes: number) {
+  if (totalSecoes <= 4) return 1;
+  if (totalSecoes <= 8) return 2;
+  if (totalSecoes <= 16) return 3;
+  return 4;
+}
+
+function getCoordAcess(totalSecoes: number) {
+  if (totalSecoes <= 2) return 0;
+  if (totalSecoes <= 7) return 1;
+  if (totalSecoes <= 14) return 2;
+  return 3;
+}
+
+const AUX_SERV_POR_LOCAL = 3;
+
+/* ── Cabeçalho de seção (rótulo + dica + régua) ─────────────────── */
+function SectionHead({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="flex items-baseline gap-3 mt-1 mb-3">
+      <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">{title}</h2>
+      {hint && <span className="text-[11.5px] text-ink-4 whitespace-nowrap">{hint}</span>}
+      <span className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
 export default function CadastroClient({ initialData }: { initialData: LocationData[] }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -51,18 +85,84 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   // Expanded Row IDs (key is zona-muni-local)
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
+  // Auth state
+  const { user, authReady, canEdit } = useAuth();
+
+  // Editable per-location data from Firestore (keyed by Firestore doc id)
+  type LocalFields = { mesaMrj?: number; pontoApoio?: number };
+  const [localData, setLocalData] = useState<Record<string, LocalFields>>({});
+  // Local drafts while editing (uncommitted input values)
+  const [mrjDrafts, setMrjDrafts] = useState<Record<string, string>>({});
+  const [pontoDrafts, setPontoDrafts] = useState<Record<string, string>>({});
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Unique filter values list
+  // Subscribe to per-location editable data (all users, public read)
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'mrj'), (snap) => {
+      const next: Record<string, LocalFields> = {};
+      snap.forEach((d) => {
+        const data = d.data() as LocalFields;
+        next[d.id] = {
+          mesaMrj: typeof data.mesaMrj === 'number' ? data.mesaMrj : undefined,
+          pontoApoio: typeof data.pontoApoio === 'number' ? data.pontoApoio : undefined,
+        };
+      });
+      setLocalData(next);
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveField = useCallback(async (
+    firestoreId: string,
+    field: 'mesaMrj' | 'pontoApoio',
+    value: number,
+  ) => {
+    try {
+      await setDoc(doc(db, 'mrj', firestoreId), {
+        [field]: value,
+        updatedAt: serverTimestamp(),
+        updatedBy: auth.currentUser?.email ?? null,
+      }, { merge: true });
+    } catch (err) {
+      console.error(`Save ${field} failed:`, err);
+    }
+  }, []);
+
+  const getMesaMrj = (firestoreId: string): number => {
+    const draft = mrjDrafts[firestoreId];
+    if (draft !== undefined) {
+      const n = Number(draft);
+      return Number.isFinite(n) ? n : 0;
+    }
+    return localData[firestoreId]?.mesaMrj ?? 0;
+  };
+
+  const getPontoApoio = (firestoreId: string): number => {
+    const draft = pontoDrafts[firestoreId];
+    if (draft !== undefined) {
+      const n = Number(draft);
+      return Number.isFinite(n) ? n : 0;
+    }
+    return localData[firestoreId]?.pontoApoio ?? 0;
+  };
+
+  // Cascading filter options: cada select respeita a seleção do outro
   const filterOptions = useMemo(() => {
     const zonas = new Set<string>();
     const munis = new Set<string>();
-    
+
     initialData.forEach(d => {
-      if (d.zona) zonas.add(String(d.zona));
-      if (d.municipio) munis.add(d.municipio);
+      const zonaStr = d.zona ? String(d.zona) : '';
+      if (zonaStr && (selectedMuni === '' || d.municipio === selectedMuni)) {
+        zonas.add(zonaStr);
+      }
+      if (d.municipio && (selectedZona === '' || zonaStr === selectedZona)) {
+        munis.add(d.municipio);
+      }
     });
 
     return {
@@ -74,18 +174,28 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       }),
       municipios: Array.from(munis).sort((a, b) => a.localeCompare(b))
     };
-  }, [initialData]);
+  }, [initialData, selectedZona, selectedMuni]);
+
+  // Auto-clear: se a seleção atual deixou de ser válida após o cruzamento, limpa
+  useEffect(() => {
+    if (selectedZona && !filterOptions.zonas.includes(selectedZona)) {
+      setSelectedZona('');
+    }
+    if (selectedMuni && !filterOptions.municipios.includes(selectedMuni)) {
+      setSelectedMuni('');
+    }
+  }, [filterOptions, selectedZona, selectedMuni]);
 
   // Filter & Search Logic
   const filteredData = useMemo(() => {
     return initialData.filter(item => {
-      const matchLocal = searchLocal === '' || 
+      const matchLocal = searchLocal === '' ||
         item.local.toLowerCase().includes(searchLocal.toLowerCase());
-      
-      const matchZona = selectedZona === '' || 
+
+      const matchZona = selectedZona === '' ||
         String(item.zona) === selectedZona;
-      
-      const matchMuni = selectedMuni === '' || 
+
+      const matchMuni = selectedMuni === '' ||
         item.municipio === selectedMuni;
 
       return matchLocal && matchZona && matchMuni;
@@ -111,7 +221,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       if (typeof valA === 'string' && typeof valB === 'string') {
         return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
       }
-      
+
       // Default numeric comparison
       const numA = Number(valA) || 0;
       const numB = Number(valB) || 0;
@@ -133,6 +243,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     let totalIdosos = 0;
     let totalDefic = 0;
     let totalAnalfabetos = 0;
+    let totalAdministradores = 0;
+    let totalCoordAcess = 0;
+    let totalMesaMrj = 0;
+    let totalPontoApoio = 0;
 
     filteredData.forEach(d => {
       totalSecoes += d.total_secoes;
@@ -140,6 +254,11 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       totalIdosos += d.qde_idosos;
       totalDefic += d.qde_eleit_c_defic;
       totalAnalfabetos += d.qde_analfabetos;
+      totalAdministradores += getAdministrador(d.total_secoes);
+      totalCoordAcess += getCoordAcess(d.total_secoes);
+      const fid = makeRowId(d.zona, d.municipio, d.local);
+      totalMesaMrj += getMesaMrj(fid);
+      totalPontoApoio += getPontoApoio(fid);
     });
 
     const uniqueZonas = new Set(filteredData.map(d => String(d.zona))).size;
@@ -149,6 +268,13 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       totalLocais: filteredData.length,
       totalSecoes,
       totalMesarios: totalSecoes * 4,
+      totalAdministradores,
+      totalCoordAcess,
+      totalAuxServ: filteredData.length * AUX_SERV_POR_LOCAL,
+      totalMesaMrj,
+      totalMesariosMrj: totalMesaMrj * 2,
+      totalPontoApoio,
+      totalAdmPredioExtra: totalPontoApoio * 2,
       totalAptos,
       totalIdosos,
       totalDefic,
@@ -156,7 +282,8 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       uniqueZonas,
       uniqueMunis
     };
-  }, [filteredData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredData, localData, mrjDrafts, pontoDrafts]);
 
   // Reset page when filters or page size change
   useEffect(() => {
@@ -187,12 +314,22 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const exportCSV = () => {
     // Generate CSV contents
-    const headers = ['Mesarios (MRV)', 'Zona', 'Municipio', 'Local', 'Total Secoes', 'Secoes', 'Qtd Aptos', 'Idosos', 'Analfabetos', 'Deficientes'];
+    const headers = ['Mesarios (MRV)', 'Administrador de Predio', 'Coord. Acess.', 'Aux. Serv. Eleitorais', 'Mesa MRJ', 'Mesarios MRJ', 'Ponto de Apoio', 'ADM Predio Extra', 'Zona', 'Municipio', 'Local', 'Total Secoes', 'Secoes', 'Qtd Aptos', 'Idosos', 'Analfabetos', 'Deficientes'];
     const csvRows = [headers.join(';')];
-    
+
     sortedData.forEach(d => {
+      const fid = makeRowId(d.zona, d.municipio, d.local);
+      const mesaMrj = getMesaMrj(fid);
+      const pontoApoio = getPontoApoio(fid);
       const row = [
         d.total_secoes * 4,
+        getAdministrador(d.total_secoes),
+        getCoordAcess(d.total_secoes),
+        AUX_SERV_POR_LOCAL,
+        mesaMrj,
+        mesaMrj * 2,
+        pontoApoio,
+        pontoApoio * 2,
         d.zona,
         d.municipio,
         `"${d.local.replace(/"/g, '""')}"`,
@@ -205,7 +342,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       ];
       csvRows.push(row.join(';'));
     });
-    
+
     const csvContent = '\uFEFF' + csvRows.join('\n'); // Add BOM for Excel compatibility in UTF-8
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -226,30 +363,81 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
 
+  // KPIs base (5 destaque) e calculados (8 secundários) — só apresentação
+  const baseKpis = [
+    { label: 'Zonas', value: kpis.uniqueZonas, sub: 'com seções ativas', accent: false },
+    { label: 'Municípios', value: kpis.uniqueMunis, sub: 'com seções ativas', accent: false },
+    { label: 'Locais de Votação', value: formatNumber(kpis.totalLocais), sub: 'colégios / prédios', accent: false },
+    { label: 'Total de Seções', value: formatNumber(kpis.totalSecoes), sub: 'seções eleitorais', accent: false },
+    { label: 'Eleitores Aptos', value: formatNumber(kpis.totalAptos), sub: 'total de cidadãos', accent: true },
+  ];
+  const calcKpis = [
+    { label: 'Mesários (MRV)', value: formatNumber(kpis.totalMesarios), sub: 'seções × 4' },
+    { label: 'ADM Prédio', value: formatNumber(kpis.totalAdministradores), sub: 'conforme nº de seções' },
+    { label: 'Coord. Acess.', value: formatNumber(kpis.totalCoordAcess), sub: 'conforme nº de seções' },
+    { label: 'Aux. Serv. Eleitorais', value: formatNumber(kpis.totalAuxServ), sub: 'locais × 3' },
+    { label: 'Mesa MRJ', value: formatNumber(kpis.totalMesaMrj), sub: 'informado por admin' },
+    { label: 'Mesários MRJ', value: formatNumber(kpis.totalMesariosMrj), sub: 'Mesa MRJ × 2' },
+    { label: 'Ponto de Apoio', value: formatNumber(kpis.totalPontoApoio), sub: 'informado por admin' },
+    { label: 'ADM Prédio Extra', value: formatNumber(kpis.totalAdmPredioExtra), sub: 'Ponto Apoio × 2' },
+  ];
+
+  // Cabeçalho de coluna ordenável
+  const SortHead = ({ field, children, center, stacked }: {
+    field: keyof LocationData; children: React.ReactNode; center?: boolean; stacked?: boolean;
+  }) => {
+    const active = sortField === field;
+    return (
+      <th className={`px-4 py-3 ${center ? 'text-center' : ''}`}>
+        <button
+          onClick={() => handleSort(field)}
+          className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.07em] transition-colors
+            ${center ? 'justify-center w-full' : ''} ${active ? 'text-accent' : 'text-ink-3 hover:text-ink'}`}
+        >
+          <span className={stacked ? 'flex flex-col leading-[1.15] items-center' : ''}>{children}</span>
+          {active
+            ? (sortAsc ? <ChevronUp size={13} /> : <ChevronDown size={13} />)
+            : <ArrowUpDown size={12} className="opacity-45" />}
+        </button>
+      </th>
+    );
+  };
+
+  const hasFilter = searchLocal || selectedZona || selectedMuni;
+
   return (
-    <div className="app-bg min-h-screen text-zinc-100 antialiased pb-12">
-      {/* Top Banner/Header */}
-      <header className="sticky top-0 z-30 px-4 sm:px-6 lg:px-8 py-4 bg-gradient-to-b from-slate-950/85 to-slate-950/20 backdrop-blur-xl border-b border-white/[0.05]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-                <span>Tribunal Regional Eleitoral</span>
-                <span className="w-1 h-1 rounded-full bg-zinc-600" />
-                <span className="text-sky-300">Cadastro Eleitoral</span>
-              </div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-zinc-50 flex items-center gap-2">
-                Estatísticas de Locais de Votação
-              </h1>
+    <div className="min-h-full bg-bg text-ink pb-14">
+      {/* ── Top bar ─────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-surface border-b border-border">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] text-ink-3">
+              <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
+              <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+              <span className="text-accent font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
             </div>
+            <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
+              <BarChart3 size={20} className="text-accent shrink-0" />
+              Estatísticas de Locais de Votação
+            </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Theme Selector */}
+          <div className="flex items-center gap-2.5">
+            {/* Exportar CSV */}
+            <button
+              onClick={exportCSV}
+              className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
+            >
+              <Download size={14} /> <span className="hidden sm:inline">Exportar CSV</span>
+            </button>
+
+            <div className="w-px h-[26px] bg-border" />
+
+            {/* Tema */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowThemeMenu(!showThemeMenu)}
-                className="grid place-items-center w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] text-zinc-300 hover:bg-white/[0.06] hover:border-white/[0.12] transition-all"
+                className="grid place-items-center w-[38px] h-[38px] rounded-[6px] bg-surface border border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors"
                 aria-label="Mudar tema"
               >
                 {getThemeIcon()}
@@ -257,7 +445,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
               {showThemeMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowThemeMenu(false)} />
-                  <div className="absolute right-0 mt-2 w-36 rounded-xl glass-strong border border-white/[0.10] p-1 shadow-2xl z-50 backdrop-blur-xl animate-rise">
+                  <div
+                    className="absolute right-0 mt-1.5 w-[152px] rounded-[6px] bg-surface border border-border-strong p-1.5 z-50"
+                    style={{ boxShadow: 'var(--shadow-menu)' }}
+                  >
                     {[
                       { id: 'light', label: 'Claro', icon: Sun },
                       { id: 'dark', label: 'Escuro', icon: Moon },
@@ -265,13 +456,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                     ].map(t => (
                       <button
                         key={t.id}
-                        onClick={() => {
-                          setTheme(t.id);
-                          setShowThemeMenu(false);
-                        }}
+                        onClick={() => { setTheme(t.id); setShowThemeMenu(false); }}
                         className={
-                          'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-left transition-colors ' +
-                          (theme === t.id ? 'bg-white/[0.08] text-zinc-50' : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]')
+                          'w-full flex items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-[13px] font-medium text-left transition-colors ' +
+                          (theme === t.id ? 'bg-accent-soft text-accent font-semibold' : 'text-ink-2 hover:text-ink hover:bg-surface-3')
                         }
                       >
                         <t.icon size={14} />
@@ -283,264 +471,324 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
               )}
             </div>
 
-            <button 
-              onClick={exportCSV} 
-              className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-sky-400/15 border border-sky-300/25 text-sky-100 text-sm font-medium hover:bg-sky-400/20 transition-all shadow-[0_0_15px_-3px_rgba(56,189,248,0.2)]"
-            >
-              <Download size={14} /> <span className="hidden sm:inline">Exportar CSV</span>
-            </button>
+            {/* Autenticação */}
+            <AuthButton />
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        {/* KPI Panel */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <div className="relative glass rounded-2xl p-5 overflow-hidden">
-            <span className="orb opacity-50" />
-            <div className="relative flex flex-col justify-between h-full">
-              <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Mesários (MRV)</span>
-              <div className="num text-2xl font-bold text-violet-400 mt-2">{formatNumber(kpis.totalMesarios)}</div>
-              <span className="text-[10px] text-zinc-500 mt-1">seções × 4</span>
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        {/* ── Indicadores-base (5 destaque) ─────────────────────── */}
+        <SectionHead title="Indicadores-base" hint="extraídos diretamente do cadastro" />
+        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-7">
+          {baseKpis.map((k) => (
+            <div key={k.label} className="relative ds-card p-[18px] overflow-hidden">
+              <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">{k.label}</div>
+              <div className={`num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none ${k.accent ? 'text-accent' : 'text-ink'}`}>{k.value}</div>
+              <div className="mt-[7px] text-[11px] text-ink-4">{k.sub}</div>
             </div>
-          </div>
+          ))}
+        </section>
 
-          <div className="relative glass rounded-2xl p-5 overflow-hidden">
-            <div className="relative flex flex-col justify-between h-full">
-              <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Zonas</span>
-              <div className="num text-2xl font-bold text-zinc-50 mt-2">{kpis.uniqueZonas}</div>
-              <span className="text-[10px] text-zinc-500 mt-1">com seções ativas</span>
-            </div>
-          </div>
-          
-          <div className="relative glass rounded-2xl p-5 overflow-hidden">
-            <div className="relative flex flex-col justify-between h-full">
-              <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Municípios</span>
-              <div className="num text-2xl font-bold text-zinc-50 mt-2">{kpis.uniqueMunis}</div>
-              <span className="text-[10px] text-zinc-500 mt-1">com seções ativas</span>
-            </div>
-          </div>
-
-          <div className="relative glass rounded-2xl p-5 overflow-hidden">
-            <div className="relative flex flex-col justify-between h-full">
-              <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Locais de Votação</span>
-              <div className="num text-2xl font-bold text-sky-400 mt-2">{formatNumber(kpis.totalLocais)}</div>
-              <span className="text-[10px] text-zinc-500 mt-1">colégio / prédios</span>
-            </div>
-          </div>
-
-          <div className="relative glass rounded-2xl p-5 overflow-hidden">
-            <div className="relative flex flex-col justify-between h-full">
-              <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Total de Seções</span>
-              <div className="num text-2xl font-bold text-emerald-400 mt-2">{formatNumber(kpis.totalSecoes)}</div>
-              <span className="text-[10px] text-zinc-500 mt-1">seções eleitorais</span>
-            </div>
-          </div>
-
-          <div className="relative glass rounded-2xl p-5 overflow-hidden">
-            <div className="relative flex flex-col justify-between h-full">
-              <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">Eleitores Aptos</span>
-              <div className="num text-2xl font-bold text-amber-400 mt-2">{formatNumber(kpis.totalAptos)}</div>
-              <span className="text-[10px] text-zinc-500 mt-1">total de cidadãos</span>
-            </div>
+        {/* ── Valores calculados (8 secundários) ────────────────── */}
+        <SectionHead title="Valores calculados" hint="derivados de regras de dimensionamento" />
+        <section className="ds-card overflow-hidden mb-7">
+          <div className="grid grid-cols-2 md:grid-cols-4">
+            {calcKpis.map((k, i) => (
+              <div
+                key={k.label}
+                className={`p-4 border-border-faint
+                  ${i % 4 !== 3 ? 'border-r' : ''} ${i >= 4 ? 'border-t' : ''}
+                  max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3] min-h-[26px]">{k.label}</div>
+                <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">{k.value}</div>
+                <div className="mt-1 text-[10px] text-ink-4">{k.sub}</div>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* Filter bar */}
-        <section className="glass rounded-2xl p-4 lg:p-5 mb-6 flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+        {/* ── Barra de filtros ──────────────────────────────────── */}
+        <section className="ds-card p-3.5 mb-[18px] flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+          <div className="flex-1 relative min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" size={16} />
             <input
               type="text"
               value={searchLocal}
               onChange={(e) => setSearchLocal(e.target.value)}
-              placeholder="Pesquisar por nome do local de votação…"
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-white/[0.04] border border-white/[0.10] text-sm text-zinc-100 placeholder:text-zinc-500
-                         focus:bg-white/[0.06] focus:border-sky-400/40 outline-none transition-all duration-200"
+              placeholder="Buscar local ou município…"
+              className="ds-input w-full pl-9 pr-4"
             />
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap gap-3">
-            <div className="relative min-w-[120px] w-full sm:w-auto">
+            <div className="relative min-w-[150px] w-full sm:w-auto">
+              <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
               <select
                 value={selectedZona}
                 onChange={(e) => setSelectedZona(e.target.value)}
-                className="w-full h-11 pl-4 pr-10 appearance-none rounded-xl bg-white/[0.04] border border-white/[0.10] text-sm text-zinc-100 font-medium
-                           hover:bg-white/[0.06] hover:border-white/[0.18] focus:border-sky-400/40 transition-all cursor-pointer"
+                className="ds-select w-full pl-9 pr-9"
               >
-                <option value="" className="bg-slate-900">Todas Zonas</option>
+                <option value="">Todas as zonas</option>
                 {filterOptions.zonas.map(z => (
-                  <option key={z} value={z} className="bg-slate-900">Zona {z}</option>
+                  <option key={z} value={z}>Zona {z}</option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
             </div>
 
             <div className="relative min-w-[180px] w-full sm:w-auto">
               <select
                 value={selectedMuni}
                 onChange={(e) => setSelectedMuni(e.target.value)}
-                className="w-full h-11 pl-4 pr-10 appearance-none rounded-xl bg-white/[0.04] border border-white/[0.10] text-sm text-zinc-100 font-medium
-                           hover:bg-white/[0.06] hover:border-white/[0.18] focus:border-sky-400/40 transition-all cursor-pointer"
+                className="ds-select w-full pl-3 pr-9"
               >
-                <option value="" className="bg-slate-900">Todos Municípios</option>
+                <option value="">Todos os municípios</option>
                 {filterOptions.municipios.map(m => (
-                  <option key={m} value={m} className="bg-slate-900">{m}</option>
+                  <option key={m} value={m}>{m}</option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
             </div>
 
-            {(searchLocal || selectedZona || selectedMuni) && (
+            {hasFilter && (
               <button
                 onClick={handleClearFilters}
-                className="h-11 px-4 rounded-xl border border-rose-500/20 text-rose-400 bg-rose-500/5 hover:bg-rose-500/10 text-sm font-medium transition-all"
+                className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:text-danger hover:border-danger-border hover:bg-danger-soft transition-colors"
               >
-                Limpar
+                <X size={14} /> Limpar
               </button>
             )}
           </div>
         </section>
 
-        {/* Tabular Dashboard Grid */}
-        <section className="glass rounded-2xl overflow-hidden rise">
-          <div className="overflow-x-auto">
+        {/* ── Tabela ────────────────────────────────────────────── */}
+        <section className="ds-card overflow-hidden">
+          <div className="overflow-x-auto scroll-x">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="bg-zinc-950/80 backdrop-blur-md border-b border-white/[0.08] text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                  <th 
-                    onClick={() => handleSort('zona')}
-                    className="px-4 py-3.5 text-center cursor-pointer hover:bg-white/[0.02] hover:text-zinc-200 transition-colors w-24 border-r border-white/[0.04]"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      Zona
-                      {sortField === 'zona' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
+                <tr className="bg-surface-2 border-b border-border-strong [&>th]:sticky [&>th]:top-0 [&>th]:bg-surface-2 [&>th]:whitespace-nowrap [&>th]:align-middle">
+                  <SortHead field="zona" center>Zona</SortHead>
+                  <SortHead field="municipio">Município</SortHead>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">Local de Votação</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Qtde</span><span>Local</span></span>
                   </th>
-                  <th 
-                    onClick={() => handleSort('municipio')}
-                    className="px-4 py-3.5 cursor-pointer hover:bg-white/[0.02] hover:text-zinc-200 transition-colors w-40 border-r border-white/[0.04]"
-                  >
-                    <div className="flex items-center gap-1">
-                      Município
-                      {sortField === 'municipio' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
+                  <SortHead field="total_secoes" center stacked><span>Total</span><span>Seções</span></SortHead>
+                  <SortHead field="total_secoes" center stacked><span>Mesários</span><span>(MRV)</span></SortHead>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>ADM</span><span>Prédio</span></span>
                   </th>
-                  <th 
-                    onClick={() => handleSort('local')}
-                    className="px-6 py-3.5 cursor-pointer hover:bg-white/[0.02] hover:text-zinc-200 transition-colors border-r border-white/[0.04]"
-                  >
-                    <div className="flex items-center gap-1">
-                      Local
-                      {sortField === 'local' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Coord.</span><span>Acess.</span></span>
                   </th>
-                  <th className="px-4 py-3.5 text-center w-28 border-r border-white/[0.04]">
-                    Local
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Aux. Serv.</span><span>Eleitorais</span></span>
                   </th>
-                  <th 
-                    onClick={() => handleSort('total_secoes')}
-                    className="px-4 py-3.5 text-center cursor-pointer hover:bg-white/[0.02] hover:text-zinc-200 transition-colors w-36 border-r border-white/[0.04]"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      Total de seções
-                      {sortField === 'total_secoes' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
+                  <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Mesa</span><span>MRJ</span></span>
                   </th>
-                  <th 
-                    onClick={() => handleSort('total_secoes')}
-                    className="px-4 py-3.5 text-center cursor-pointer hover:bg-white/[0.02] hover:text-zinc-200 transition-colors w-36"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      Mesários (MRV)
-                      {sortField === 'total_secoes' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
+                  <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Mesários</span><span>MRJ</span></span>
+                  </th>
+                  <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Ponto</span><span>Apoio</span></span>
+                  </th>
+                  <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>ADM Prédio</span><span>Extra</span></span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.05] text-sm text-zinc-300">
-                {paginatedData.map((row, idx) => {
+              <tbody className="text-sm text-ink-2">
+                {paginatedData.map((row) => {
                   const rowId = `${row.zona}-${row.municipio}-${row.local}`;
+                  const firestoreId = makeRowId(row.zona, row.municipio, row.local);
                   const isExpanded = expandedRows[rowId] || false;
 
                   return (
                     <React.Fragment key={rowId}>
-                      <tr 
+                      <tr
                         onClick={() => toggleRow(rowId)}
-                        className="row-hover transition-colors cursor-pointer group"
+                        className="row-hover border-b border-border-faint transition-colors cursor-pointer group"
                       >
                         {/* Zona */}
-                        <td className="px-4 py-3.5 text-center font-medium text-zinc-400 group-hover:text-zinc-200 border-r border-white/[0.04]">
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">
                           {row.zona}
                         </td>
                         {/* Municipio */}
-                        <td className="px-4 py-3.5 font-semibold text-zinc-300 group-hover:text-zinc-100 border-r border-white/[0.04]">
+                        <td className="px-4 py-[11px] font-semibold text-ink whitespace-nowrap">
                           {row.municipio}
                         </td>
                         {/* Local Name */}
-                        <td className="px-6 py-3.5 font-normal text-zinc-100 group-hover:text-white border-r border-white/[0.04]">
-                          <div className="flex items-center gap-2">
-                            {isExpanded ? <EyeOff size={14} className="text-sky-400 shrink-0" /> : <Eye size={14} className="text-zinc-500 group-hover:text-sky-300 shrink-0" />}
-                            <span className="truncate max-w-[450px] lg:max-w-xl" title={row.local}>{row.local}</span>
+                        <td className="px-4 py-[11px] text-ink align-top min-w-[260px]">
+                          <div className="flex items-start gap-2">
+                            {isExpanded
+                              ? <EyeOff size={15} className="text-accent shrink-0 mt-0.5" />
+                              : <Eye size={15} className="text-ink-4 group-hover:text-accent shrink-0 mt-0.5 transition-colors" />}
+                            <span className="whitespace-normal break-words leading-snug font-medium" title={row.local}>{row.local}</span>
                           </div>
                         </td>
                         {/* Local (Count) */}
-                        <td className="px-4 py-3.5 text-center text-zinc-400 border-r border-white/[0.04]">
-                          1
-                        </td>
+                        <td className="px-4 py-[11px] text-center text-ink-3 num">1</td>
                         {/* Total de secoes */}
-                        <td className="px-4 py-3.5 text-center font-bold text-zinc-100 border-r border-white/[0.04]">
-                          {row.total_secoes}
-                        </td>
+                        <td className="px-4 py-[11px] text-center font-bold text-ink num">{row.total_secoes}</td>
                         {/* Mesários (MRV) */}
-                        <td className="px-4 py-3.5 text-center font-bold text-violet-300 group-hover:text-violet-200">
-                          {row.total_secoes * 4}
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{row.total_secoes * 4}</td>
+                        {/* Administrador de Prédio */}
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{getAdministrador(row.total_secoes)}</td>
+                        {/* Coord. Acess. */}
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{getCoordAcess(row.total_secoes)}</td>
+                        {/* Aux. Serv. Eleitorais */}
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{AUX_SERV_POR_LOCAL}</td>
+                        {/* Mesa MRJ */}
+                        <td className="px-2 py-[11px] text-center"
+                            onClick={(e) => { if (canEdit) e.stopPropagation(); }}>
+                          {canEdit ? (
+                            <input
+                              type="number"
+                              min={0}
+                              max={9999}
+                              step={1}
+                              value={mrjDrafts[firestoreId] ?? (localData[firestoreId]?.mesaMrj ?? '')}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setMrjDrafts(d => ({ ...d, [firestoreId]: e.target.value }));
+                              }}
+                              onBlur={(e) => {
+                                e.stopPropagation();
+                                const raw = mrjDrafts[firestoreId];
+                                if (raw === undefined) return;
+                                const n = raw === '' ? 0 : Math.max(0, Math.min(9999, Math.floor(Number(raw))));
+                                if (!Number.isFinite(n)) return;
+                                saveField(firestoreId, 'mesaMrj', n);
+                                setMrjDrafts(d => {
+                                  const nd = { ...d };
+                                  delete nd[firestoreId];
+                                  return nd;
+                                });
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Escape') {
+                                  setMrjDrafts(d => {
+                                    const nd = { ...d };
+                                    delete nd[firestoreId];
+                                    return nd;
+                                  });
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                              className="ds-num w-16 h-8 px-2 text-center rounded-[4px] bg-surface border border-border-strong text-sm font-bold text-ink num hover:border-accent focus:border-accent outline-none transition-colors"
+                            />
+                          ) : (
+                            <span className="font-bold text-ink num">
+                              {localData[firestoreId]?.mesaMrj ?? 0}
+                            </span>
+                          )}
+                        </td>
+                        {/* Mesários MRJ */}
+                        <td className="px-2 py-[11px] text-center font-semibold text-ink-2 num">
+                          {getMesaMrj(firestoreId) * 2}
+                        </td>
+                        {/* Ponto de Apoio */}
+                        <td className="px-2 py-[11px] text-center"
+                            onClick={(e) => { if (canEdit) e.stopPropagation(); }}>
+                          {canEdit ? (
+                            <input
+                              type="number"
+                              min={0}
+                              max={9999}
+                              step={1}
+                              value={pontoDrafts[firestoreId] ?? (localData[firestoreId]?.pontoApoio ?? '')}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setPontoDrafts(d => ({ ...d, [firestoreId]: e.target.value }));
+                              }}
+                              onBlur={(e) => {
+                                e.stopPropagation();
+                                const raw = pontoDrafts[firestoreId];
+                                if (raw === undefined) return;
+                                const n = raw === '' ? 0 : Math.max(0, Math.min(9999, Math.floor(Number(raw))));
+                                if (!Number.isFinite(n)) return;
+                                saveField(firestoreId, 'pontoApoio', n);
+                                setPontoDrafts(d => {
+                                  const nd = { ...d };
+                                  delete nd[firestoreId];
+                                  return nd;
+                                });
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Escape') {
+                                  setPontoDrafts(d => {
+                                    const nd = { ...d };
+                                    delete nd[firestoreId];
+                                    return nd;
+                                  });
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                              className="ds-num w-16 h-8 px-2 text-center rounded-[4px] bg-surface border border-border-strong text-sm font-bold text-ink num hover:border-accent focus:border-accent outline-none transition-colors"
+                            />
+                          ) : (
+                            <span className="font-bold text-ink num">
+                              {localData[firestoreId]?.pontoApoio ?? 0}
+                            </span>
+                          )}
+                        </td>
+                        {/* ADM Prédio Extra */}
+                        <td className="px-2 py-[11px] text-center font-semibold text-ink-2 num">
+                          {getPontoApoio(firestoreId) * 2}
                         </td>
                       </tr>
-                      
-                      {/* Expanded View */}
+
+                      {/* Linha expandida */}
                       {isExpanded && (
-                        <tr className="bg-white/[0.015]">
-                          <td colSpan={6} className="px-6 py-5 border-t border-b border-sky-500/10">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                              {/* Left Panel: Statistics */}
-                              <div className="md:col-span-2 space-y-4">
-                                <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-400 flex items-center gap-2">
-                                  <MapPin size={12} /> Detalhes do Local de Votação
+                        <tr className="bg-surface-2">
+                          <td colSpan={13} className="px-0 py-0 border-t border-b border-accent-soft-border">
+                            <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+                              {/* Painel esquerdo: estatísticas */}
+                              <div className="md:col-span-2 space-y-3.5">
+                                <h4 className="text-[11px] font-bold uppercase tracking-[0.09em] text-accent flex items-center gap-2">
+                                  <MapPin size={13} /> Composição do eleitorado
                                 </h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                  <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-3.5">
-                                    <div className="text-[10px] text-zinc-500 font-medium">Eleitores Aptos</div>
-                                    <div className="text-base font-bold text-zinc-100 mt-1">{formatNumber(row.qtd_aptos)}</div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                  <div className="ds-card rounded-[4px] p-3">
+                                    <div className="text-[10.5px] text-ink-3 font-semibold">Eleitores aptos</div>
+                                    <div className="num text-[17px] font-bold text-ink mt-1">{formatNumber(row.qtd_aptos)}</div>
                                   </div>
-                                  <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-3.5">
-                                    <div className="text-[10px] text-zinc-500 font-medium">Idosos</div>
-                                    <div className="text-base font-bold text-zinc-100 mt-1">{formatNumber(row.qde_idosos)}</div>
-                                    <div className="text-[9px] text-zinc-500 mt-0.5">{formatPercent(row.qde_idosos, row.qtd_aptos)}</div>
+                                  <div className="ds-card rounded-[4px] p-3">
+                                    <div className="text-[10.5px] text-ink-3 font-semibold">Idosos</div>
+                                    <div className="num text-[17px] font-bold text-ink mt-1">{formatNumber(row.qde_idosos)}</div>
+                                    <div className="text-[10px] text-ink-4 mt-0.5">{formatPercent(row.qde_idosos, row.qtd_aptos)}</div>
                                   </div>
-                                  <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-3.5">
-                                    <div className="text-[10px] text-zinc-500 font-medium">Com Deficiência</div>
-                                    <div className="text-base font-bold text-zinc-100 mt-1">{formatNumber(row.qde_eleit_c_defic)}</div>
-                                    <div className="text-[9px] text-zinc-500 mt-0.5">{formatPercent(row.qde_eleit_c_defic, row.qtd_aptos)}</div>
+                                  <div className="ds-card rounded-[4px] p-3">
+                                    <div className="text-[10.5px] text-ink-3 font-semibold">Com deficiência</div>
+                                    <div className="num text-[17px] font-bold text-ink mt-1">{formatNumber(row.qde_eleit_c_defic)}</div>
+                                    <div className="text-[10px] text-ink-4 mt-0.5">{formatPercent(row.qde_eleit_c_defic, row.qtd_aptos)}</div>
                                   </div>
-                                  <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-3.5">
-                                    <div className="text-[10px] text-zinc-500 font-medium">Analfabetos</div>
-                                    <div className="text-base font-bold text-zinc-100 mt-1">{formatNumber(row.qde_analfabetos)}</div>
-                                    <div className="text-[9px] text-zinc-500 mt-0.5">{formatPercent(row.qde_analfabetos, row.qtd_aptos)}</div>
+                                  <div className="ds-card rounded-[4px] p-3">
+                                    <div className="text-[10.5px] text-ink-3 font-semibold">Não alfabetizados</div>
+                                    <div className="num text-[17px] font-bold text-ink mt-1">{formatNumber(row.qde_analfabetos)}</div>
+                                    <div className="text-[10px] text-ink-4 mt-0.5">{formatPercent(row.qde_analfabetos, row.qtd_aptos)}</div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Right Panel: Sections List */}
+                              {/* Painel direito: seções */}
                               <div className="space-y-2">
-                                <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
-                                  Seções Vinculadas ({row.total_secoes})
+                                <h4 className="text-[11px] font-bold uppercase tracking-[0.09em] text-ink-3">
+                                  Seções vinculadas ({row.total_secoes})
                                 </h4>
                                 <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-2 scroll-y">
                                   {row.secoes.map(sec => (
-                                    <span 
-                                      key={sec} 
-                                      className="font-mono text-xs font-semibold text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-md px-2 py-0.5"
+                                    <span
+                                      key={sec}
+                                      className="font-mono text-[11.5px] font-semibold text-accent bg-accent-soft border border-accent-soft-border rounded-[4px] px-2 py-0.5 num"
                                     >
                                       {sec}
                                     </span>
@@ -557,7 +805,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
                 {sortedData.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-zinc-500 text-sm">
+                    <td colSpan={13} className="p-14 text-center text-ink-3 text-[13.5px]">
                       Nenhum local de votação corresponde aos filtros informados.
                     </td>
                   </tr>
@@ -566,48 +814,51 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             </table>
           </div>
 
-          {/* Pagination Footer */}
+          {/* Rodapé de paginação */}
           {sortedData.length > 0 && (
-            <div className="p-4 bg-zinc-950/40 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-xs text-zinc-500">
-                Mostrando <span className="text-zinc-300">{(currentPage - 1) * pageSize + 1}</span> a{' '}
-                <span className="text-zinc-300">{Math.min(currentPage * pageSize, sortedData.length)}</span> de{' '}
-                <span className="text-zinc-300">{sortedData.length}</span> locais
+            <div className="px-4 py-3 bg-surface-2 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-[12.5px] text-ink-3">
+                Exibindo <span className="text-ink font-bold num">{(currentPage - 1) * pageSize + 1}</span>–
+                <span className="text-ink font-bold num">{Math.min(currentPage * pageSize, sortedData.length)}</span> de{' '}
+                <span className="text-ink font-bold num">{sortedData.length}</span> locais
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-500">Por página:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="h-8 px-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-zinc-300 cursor-pointer outline-none focus:border-sky-400/40"
-                  >
-                    {[10, 25, 50, 100, 250].map(size => (
-                      <option key={size} value={size} className="bg-slate-900">{size}</option>
-                    ))}
-                  </select>
+                  <span className="text-[12.5px] text-ink-3">Por página:</span>
+                  <div className="relative">
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="h-8 pl-2.5 pr-7 appearance-none rounded-[4px] bg-surface border border-border-strong text-[12.5px] text-ink cursor-pointer outline-none focus:border-accent"
+                    >
+                      {[10, 25, 50, 100, 250].map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 h-8 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    className="inline-flex items-center gap-1 h-8 px-3 rounded-[4px] bg-surface border border-border-strong text-[12.5px] font-semibold text-ink-2 hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Anterior
+                    <ChevronLeft size={14} /> Anterior
                   </button>
-                  
-                  <span className="text-xs text-zinc-500 px-2">
-                    Pág. <span className="text-zinc-300">{currentPage}</span> de <span className="text-zinc-300">{totalPages}</span>
+
+                  <span className="text-[12.5px] text-ink-3 px-1.5">
+                    Pág. <span className="text-ink font-bold">{currentPage}</span> de <span className="text-ink font-bold">{totalPages}</span>
                   </span>
 
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 h-8 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    className="inline-flex items-center gap-1 h-8 px-3 rounded-[4px] bg-surface border border-border-strong text-[12.5px] font-semibold text-ink-2 hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Próxima
+                    Próxima <ChevronRight size={14} />
                   </button>
                 </div>
               </div>

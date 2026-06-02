@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TRE-RN · Cadastro Eleitoral — Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data.js"></script>
+<script src="helpers.js"></script>
+<script type="text/babel" src="Icons.jsx"></script>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="Estatistica.jsx"></script>
+<script type="text/babel" src="Agregacoes.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+const h = React.createElement;
+const I = window.Icons;
+const { Sidebar, Header } = window.Shell;
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  let effective = theme;
+  if (theme === "system") {
+    effective = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  root.setAttribute("data-theme", effective);
+}
+
+function App() {
+  const [route, setRoute] = useState(() => {
+    const hash = location.hash.replace("#", "");
+    return hash === "agregacoes" ? "agregacoes" : "estatistica";
+  });
+  const [theme, setThemeState] = useState(() => localStorage.getItem("tre-theme") || "light");
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => { applyTheme(theme); }, [theme]);
+  useEffect(() => {
+    if (theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const fn = () => applyTheme("system");
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, [theme]);
+  useEffect(() => { location.hash = route; }, [route]);
+
+  function setTheme(t) { setThemeState(t); localStorage.setItem("tre-theme", t); }
+
+  const isEstat = route === "estatistica";
+  const headerProps = isEstat
+    ? { icon: I.BarChart3, title: "Estatística" }
+    : { icon: I.Database, title: "Agregações" };
+
+  return h("div", { className: "layout" },
+    h(Sidebar, { route, setRoute, mobileOpen, setMobileOpen }),
+    h("div", { className: "main" },
+      h(Header, {
+        ...headerProps, theme, setTheme,
+        onMenu: () => setMobileOpen(true),
+      }),
+      h("main", { className: "content", key: route },
+        isEstat ? h(window.Estatistica) : h(window.Agregacoes)
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<rect width="100" height="100" fill="#1a7a48"/>
+<rect x="30" y="30" width="40" height="6" rx="1" fill="#ffffff"/>
+<rect x="30" y="44" width="40" height="3" rx="1" fill="#bfe0cc"/>
+<rect x="30" y="52" width="40" height="3" rx="1" fill="#bfe0cc"/>
+<rect x="30" y="60" width="28" height="3" rx="1" fill="#bfe0cc"/>
+</svg>
+</template>
+</body>
+</html>

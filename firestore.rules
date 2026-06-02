@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthorizedAdmin() {
+      return request.auth != null
+          && request.auth.token.email_verified == true
+          && request.auth.token.email.lower() in [
+               'karina.pedrosa@tre-rn.jus.br',
+               'monica.paim@tre-rn.jus.br',
+               'mozart.medeiros@tre-rn.jus.br'
+             ];
+    }
+
+    function validNumberField(data, field, maxVal) {
+      return !(field in data)
+          || (data[field] is number && data[field] >= 0 && data[field] <= maxVal);
+    }
+
+    function validBoolField(data, field) {
+      return !(field in data) || data[field] is bool;
+    }
+
+    match /mrj/{rowId} {
+      allow read: if true;
+      allow create, update: if isAuthorizedAdmin()
+                          && validNumberField(request.resource.data, 'mesaMrj', 9999)
+                          && validNumberField(request.resource.data, 'pontoApoio', 9999);
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    match /agregacoes/{rowId} {
+      allow read: if true;
+      allow create, update: if isAuthorizedAdmin()
+                          && validBoolField(request.resource.data, 'agregar')
+                          && validNumberField(request.resource.data, 'total', 9999);
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

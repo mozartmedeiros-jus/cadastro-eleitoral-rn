@@ -1,0 +1,132 @@
+[
+  {
+    "zona": 1,
+    "municipio": "Natal",
+    "local": "ADEFERN - ASSOC. DOS DEFICIENTES FISICOS DO RN",
+    "total_secoes": 5,
+    "secoes": [
+      "492",
+      "493",
+      "494",
+      "495",
+      "496"
+    ],
+    "secoes_detalhes": [
+      {
+        "secao": "492",
+        "aptos": 309
+      },
+      {
+        "secao": "493",
+        "aptos": 310
+      },
+      {
+        "secao": "494",
+        "aptos": 310
+      },
+      {
+        "secao": "495",
+        "aptos": 307
+      },
+      {
+        "secao": "496",
+        "aptos": 308
+      }
+    ],
+    "qtd_aptos": 1544,
+    "qde_analfabetos": 19,
+    "qde_idosos": 378,
+    "qde_le_escreve": 48,
+    "qde_eleit_c_defic": 41
+  },
+  {
+    "zona": 1,
+    "municipio": "Natal",
+    "local": "CDF COLEGIO E CURSO ZONA NORTE",
+    "total_secoes": 5,
+    "secoes": [
+      "616",
+      "617",
+      "618",
+      "619",
+      "620"
+    ],
+    "secoes_detalhes": [
+      {
+        "secao": "616",
+        "aptos": 443
+      },
+      {
+        "secao": "617",
+        "aptos": 442
+      },
+      {
+        "secao": "618",
+        "aptos": 440
+      },
+      {
+        "secao": "619",
+        "aptos": 441
+      },
+      {
+        "secao": "620",
+        "aptos": 429
+      }
+    ],
+    "qtd_aptos": 2195,
+    "qde_analfabetos": 16,
+    "qde_idosos": 355,
+    "qde_le_escreve": 28,
+    "qde_eleit_c_defic": 30
+  },
+  {
+    "zona": 1,
+    "municipio": "Natal",
+    "local": "CENEP - CENTRO ESTADUAL DE EDUCAÇÃO PROFIS SENADOR JESSÉ PINTO FREIRE",
+    "total_secoes": 7,
+    "secoes": [
+      "61",
+      "62",
+      "63",
+      "64",
+      "65",
+      "66",
+      "452"
+    ],
+    "secoes_detalhes": [
+      {
+        "secao": "61",
+        "aptos": 332
+      },
+      {
+        "secao": "62",
+        "aptos": 328
+      },
+      {
+        "secao": "63",
+        "aptos": 328
+      },
+      {
+        "secao": "64",
+        "aptos": 328
+      },
+      {
+        "secao": "65",
+        "aptos": 330
+      },
+      {
+        "secao": "66",
+        "aptos": 328
+      },
+      {
+        "secao": "452",
+        "aptos": 326
+      }
+    ],
+    "qtd_aptos": 2300,
+    "qde_analfabetos": 13,
+    "qde_idosos": 778,
+    "qde_le_escreve": 25,
+    "qde_eleit_c_defic": 43
+  }
+]
