@@ -5,7 +5,16 @@ import Link from 'next/link';
 import { collection, onSnapshot, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
-import { History, RotateCcw, Trash2 } from 'lucide-react';
+import { History, RotateCcw, Trash2, ChevronDown, Check } from 'lucide-react';
+
+interface CicloRowItem {
+  rowId: string;
+  zona: number | string;
+  municipio: string;
+  local: string;
+  agregar?: boolean;
+  total?: number;
+}
 
 interface CicloRow {
   id: string;
@@ -15,6 +24,7 @@ interface CicloRow {
   agregacoes: number;
   savedAt: Date | null;
   savedBy: string | null;
+  rows: CicloRowItem[];
 }
 
 function formatDate(date: Date | null): string {
@@ -25,12 +35,30 @@ function formatDate(date: Date | null): string {
   });
 }
 
-function parseRows(rows: Record<string, { agregar?: boolean; total?: number }> | undefined) {
-  if (!rows) return { locais: 0, agregacoes: 0 };
-  const entries = Object.values(rows);
+function parseRows(rawRows: Record<string, { agregar?: boolean; total?: number; zona?: number | string; municipio?: string; local?: string }> | undefined) {
+  if (!rawRows) return { locais: 0, agregacoes: 0, rows: [] };
+  const entries = Object.entries(rawRows);
+  const rows: CicloRowItem[] = entries
+    .map(([rowId, r]) => ({
+      rowId,
+      zona: r.zona ?? '',
+      municipio: r.municipio ?? '',
+      local: r.local ?? '',
+      agregar: r.agregar,
+      total: r.total,
+    }))
+    .sort((a, b) => {
+      const za = Number(a.zona) || 0;
+      const zb = Number(b.zona) || 0;
+      if (za !== zb) return za - zb;
+      const mc = a.municipio.localeCompare(b.municipio);
+      if (mc !== 0) return mc;
+      return a.local.localeCompare(b.local);
+    });
   return {
-    locais: entries.length,
-    agregacoes: entries.reduce((sum, r) => sum + (r.total ?? 0), 0),
+    locais: rows.length,
+    agregacoes: entries.reduce((sum, [, r]) => sum + (r.total ?? 0), 0),
+    rows,
   };
 }
 
@@ -38,6 +66,7 @@ export default function CiclosClient() {
   const { user, canEdit } = useAuth();
   const [ciclos, setCiclos] = useState<CicloRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -45,7 +74,7 @@ export default function CiclosClient() {
     const unsub = onSnapshot(collection(db, 'ciclos'), (snap) => {
       const list: CicloRow[] = snap.docs.map(d => {
         const data = d.data();
-        const { locais, agregacoes } = parseRows(data.rows);
+        const { locais, agregacoes, rows } = parseRows(data.rows);
         const savedAt = data.savedAt instanceof Timestamp ? data.savedAt.toDate() : null;
         return {
           id: d.id,
@@ -55,6 +84,7 @@ export default function CiclosClient() {
           agregacoes,
           savedAt,
           savedBy: data.savedBy ?? null,
+          rows,
         };
       });
       list.sort((a, b) => a.id.localeCompare(b.id));
@@ -69,12 +99,13 @@ export default function CiclosClient() {
     try {
       await deleteDoc(doc(db, 'ciclos', id));
       setConfirmDelete(null);
+      if (expandedId === id) setExpandedId(null);
     } catch (err) {
       console.error('Delete ciclo failed:', err);
     } finally {
       setDeleting(false);
     }
-  }, []);
+  }, [expandedId]);
 
   return (
     <div className="min-h-full bg-[var(--bg)] text-[var(--ink)] pb-14">
@@ -129,7 +160,7 @@ export default function CiclosClient() {
             Ciclos salvos
           </h2>
           <span className="text-[11.5px] text-[var(--ink-4)] whitespace-nowrap">
-            clique em Recuperar para restaurar um ciclo
+            clique no código para ver o conteúdo · clique em Recuperar para restaurar
           </span>
           <span className="flex-1 h-px bg-[var(--border)]" />
         </div>
@@ -161,37 +192,94 @@ export default function CiclosClient() {
                 </thead>
                 <tbody>
                   {ciclos.map((c) => (
-                    <tr key={c.id} className="border-b border-[var(--border-faint)] hover:bg-[var(--surface-2)] transition-colors">
-                      <td className="px-4 py-3 font-bold text-[var(--ink)] font-mono text-[13.5px]">{c.id}</td>
-                      <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.capitalLimit}</td>
-                      <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.interiorLimit}</td>
-                      <td className="px-4 py-3 text-center text-[var(--ink)] num font-bold">{c.locais}</td>
-                      <td className="px-4 py-3 text-center text-[var(--accent-text)] num font-bold">{c.agregacoes}</td>
-                      <td className="px-4 py-3 text-[13px] text-[var(--ink-3)] whitespace-nowrap">{formatDate(c.savedAt)}</td>
-                      <td className="px-4 py-3 text-[12.5px] text-[var(--ink-3)] max-w-[180px] truncate">{c.savedBy ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          {user && (
-                            <Link
-                              href={`/agregacoes?ciclo=${c.id}`}
-                              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft-bg)] hover:text-[var(--accent-text)] hover:border-[var(--accent-soft-bd)] transition-colors"
-                            >
-                              <RotateCcw size={12} />
-                              Recuperar
-                            </Link>
-                          )}
-                          {canEdit && (
-                            <button
-                              onClick={() => setConfirmDelete(c.id)}
-                              className="h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-text)] hover:border-[var(--danger-bd)] transition-colors"
-                              title={`Apagar ciclo ${c.id}`}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    <>
+                      <tr key={c.id} className="border-b border-[var(--border-faint)] hover:bg-[var(--surface-2)] transition-colors">
+                        {/* Ciclo ID — clicável para expandir */}
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                            className="flex items-center gap-1.5 font-bold text-[var(--ink)] font-mono text-[13.5px] hover:text-[var(--accent-text)] transition-colors"
+                          >
+                            <ChevronDown
+                              size={14}
+                              className={`text-[var(--ink-4)] transition-transform duration-150 ${expandedId === c.id ? 'rotate-180' : ''}`}
+                            />
+                            {c.id}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.capitalLimit}</td>
+                        <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.interiorLimit}</td>
+                        <td className="px-4 py-3 text-center text-[var(--ink)] num font-bold">{c.locais}</td>
+                        <td className="px-4 py-3 text-center text-[var(--accent-text)] num font-bold">{c.agregacoes}</td>
+                        <td className="px-4 py-3 text-[13px] text-[var(--ink-3)] whitespace-nowrap">{formatDate(c.savedAt)}</td>
+                        <td className="px-4 py-3 text-[12.5px] text-[var(--ink-3)] max-w-[180px] truncate">{c.savedBy ?? '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            {user && (
+                              <Link
+                                href={`/agregacoes?ciclo=${c.id}`}
+                                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft-bg)] hover:text-[var(--accent-text)] hover:border-[var(--accent-soft-bd)] transition-colors"
+                              >
+                                <RotateCcw size={12} />
+                                Recuperar
+                              </Link>
+                            )}
+                            {canEdit && (
+                              <button
+                                onClick={() => setConfirmDelete(c.id)}
+                                className="h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-text)] hover:border-[var(--danger-bd)] transition-colors"
+                                title={`Apagar ciclo ${c.id}`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Linha expandida com conteúdo do ciclo */}
+                      {expandedId === c.id && (
+                        <tr key={`${c.id}-expanded`}>
+                          <td colSpan={8} className="px-0 py-0 bg-[var(--surface-2)] border-b border-[var(--border)]">
+                            <div className="px-6 py-4">
+                              {c.rows.length === 0 ? (
+                                <p className="text-[12.5px] text-[var(--ink-4)] italic">Nenhum local salvo neste ciclo.</p>
+                              ) : (
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-[var(--border-strong)]">
+                                      {['Zona', 'Município', 'Local de Votação', 'Agregar', 'Total'].map(col => (
+                                        <th key={col} className="pb-2 pr-4 text-[10px] font-bold uppercase tracking-[0.07em] text-[var(--ink-3)] whitespace-nowrap">
+                                          {col}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {c.rows.map(r => (
+                                      <tr key={r.rowId} className="border-b border-[var(--border-faint)] last:border-0">
+                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-[var(--ink-2)] num">{r.zona}</td>
+                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-[var(--ink)] whitespace-nowrap">{r.municipio}</td>
+                                        <td className="py-2 pr-4 text-[12.5px] text-[var(--ink)]">{r.local}</td>
+                                        <td className="py-2 pr-4 text-center">
+                                          {r.agregar
+                                            ? <Check size={14} className="text-[var(--accent-text)] inline" />
+                                            : <span className="text-[var(--ink-4)]">—</span>
+                                          }
+                                        </td>
+                                        <td className="py-2 text-[12.5px] font-semibold text-[var(--ink)] num">
+                                          {r.total !== undefined ? r.total : <span className="text-[var(--ink-4)]">—</span>}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>
