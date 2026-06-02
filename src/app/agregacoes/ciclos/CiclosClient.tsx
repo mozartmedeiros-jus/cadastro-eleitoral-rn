@@ -35,7 +35,7 @@ function parseRows(rows: Record<string, { agregar?: boolean; total?: number }> |
 }
 
 export default function CiclosClient() {
-  const { canEdit } = useAuth();
+  const { user, canEdit } = useAuth();
   const [ciclos, setCiclos] = useState<CicloRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -171,13 +171,15 @@ export default function CiclosClient() {
                       <td className="px-4 py-3 text-[12.5px] text-[var(--ink-3)] max-w-[180px] truncate">{c.savedBy ?? '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/agregacoes?ciclo=${c.id}`}
-                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft-bg)] hover:text-[var(--accent-text)] hover:border-[var(--accent-soft-bd)] transition-colors"
-                          >
-                            <RotateCcw size={12} />
-                            Recuperar
-                          </Link>
+                          {user && (
+                            <Link
+                              href={`/agregacoes?ciclo=${c.id}`}
+                              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft-bg)] hover:text-[var(--accent-text)] hover:border-[var(--accent-soft-bd)] transition-colors"
+                            >
+                              <RotateCcw size={12} />
+                              Recuperar
+                            </Link>
+                          )}
                           {canEdit && (
                             <button
                               onClick={() => setConfirmDelete(c.id)}

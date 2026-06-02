@@ -293,40 +293,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     }
   }, [agregacoesData, router]);
 
-  // Regravar ciclo ativo com o estado atual
-  const regravarCiclo = useCallback(async () => {
-    if (!cicloAtivo) return;
-    const { id: cicloId, capitalLimit: cap, interiorLimit: int } = cicloAtivo;
-    const rows: Record<string, object> = {};
-    initialData.forEach(item => {
-      const rowId = makeRowId(item.zona, item.municipio, item.local);
-      const fields = agregacoesData[rowId];
-      if (fields?.agregar === true || fields?.total !== undefined) {
-        rows[rowId] = {
-          zona: item.zona,
-          municipio: item.municipio,
-          local: item.local,
-          ...(fields.agregar !== undefined && { agregar: fields.agregar }),
-          ...(fields.total !== undefined && { total: fields.total }),
-        };
-      }
-    });
-    setSavingCiclo(true);
-    try {
-      await setDoc(doc(db, 'ciclos', cicloId), {
-        capitalLimit: cap,
-        interiorLimit: int,
-        savedAt: serverTimestamp(),
-        savedBy: auth.currentUser?.email ?? null,
-        rows,
-      });
-    } catch (err) {
-      console.error('Regravar ciclo failed:', err);
-    } finally {
-      setSavingCiclo(false);
-    }
-  }, [cicloAtivo, agregacoesData, initialData]);
-
   // Apagar todos os dados de agregacoes para iniciar novo ciclo
   const novoCiclo = useCallback(async () => {
     setClearingCiclo(true);
@@ -632,16 +598,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
               — Os dados de AGREGAR e TOTAL foram carregados deste ciclo.
             </span>
             <div className="flex items-center gap-2 ml-auto">
-              {canEdit && (
-                <button
-                  onClick={regravarCiclo}
-                  disabled={savingCiclo}
-                  className="inline-flex items-center gap-1.5 h-7 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--surface-3)] disabled:opacity-50 transition-colors"
-                >
-                  <Save size={12} />
-                  {savingCiclo ? 'Salvando…' : 'Regravar ciclo'}
-                </button>
-              )}
               <button
                 onClick={() => {
                   setCicloAtivo(null);
@@ -787,8 +743,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     <input
                       type="number"
                       value={capitalInput}
-                      onChange={(e) => setCapitalInput(e.target.value)}
-                      className="ds-num w-14 h-7 bg-surface-3 border border-border rounded-[4px] text-center text-sm font-bold text-ink num focus:outline-none focus:border-accent focus:text-accent transition-colors"
+                      onChange={(e) => { if (!cicloAtivo) setCapitalInput(e.target.value); }}
+                      readOnly={!!cicloAtivo}
+                      className={`ds-num w-14 h-7 bg-surface-3 border border-border rounded-[4px] text-center text-sm font-bold text-ink num focus:outline-none focus:border-accent focus:text-accent transition-colors ${cicloAtivo ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
                   </div>
                   <div className="inline-flex items-center gap-2.5 h-10 px-3 bg-surface border border-border-strong rounded-[6px]">
@@ -796,13 +753,14 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     <input
                       type="number"
                       value={interiorInput}
-                      onChange={(e) => setInteriorInput(e.target.value)}
-                      className="ds-num w-14 h-7 bg-surface-3 border border-border rounded-[4px] text-center text-sm font-bold text-ink num focus:outline-none focus:border-accent focus:text-accent transition-colors"
+                      onChange={(e) => { if (!cicloAtivo) setInteriorInput(e.target.value); }}
+                      readOnly={!!cicloAtivo}
+                      className={`ds-num w-14 h-7 bg-surface-3 border border-border rounded-[4px] text-center text-sm font-bold text-ink num focus:outline-none focus:border-accent focus:text-accent transition-colors ${cicloAtivo ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
                   </div>
                   <button
                     onClick={handleCalculate}
-                    disabled={!capitalInput.trim() || !interiorInput.trim()}
+                    disabled={!capitalInput.trim() || !interiorInput.trim() || !!cicloAtivo}
                     className="h-10 px-5 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95"
                   >
                     Calcular
