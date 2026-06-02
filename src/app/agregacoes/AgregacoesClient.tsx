@@ -338,6 +338,10 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
       await batch.commit();
       setCicloAtivo(null);
       setShowClearWarning(false);
+      setCapitalInput('');
+      setInteriorInput('');
+      setCapitalLimit(0);
+      setInteriorLimit(0);
       router.replace('/agregacoes');
     } catch (err) {
       console.error('Novo ciclo failed:', err);
@@ -798,7 +802,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   </div>
                   <button
                     onClick={handleCalculate}
-                    className="h-10 px-5 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors active:scale-95"
+                    disabled={!capitalInput.trim() || !interiorInput.trim()}
+                    className="h-10 px-5 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95"
                   >
                     Calcular
                   </button>
@@ -806,8 +811,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     <div className="flex items-center gap-2">
                       <button
                         onClick={saveCiclo}
-                        disabled={savingCiclo}
-                        className="h-10 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+                        disabled={savingCiclo || !capitalInput.trim() || !interiorInput.trim()}
+                        className="h-10 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
                       >
                         <Save size={14} />
                         {savingCiclo ? 'Salvando…' : `Salvar ciclo ${capitalLimit}-${interiorLimit}`}
