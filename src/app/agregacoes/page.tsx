@@ -1,16 +1,16 @@
 import { Suspense } from 'react';
-import AgregacoesClient from './AgregacoesClient';
+import AgregacoesOverview from './AgregacoesOverview';
 import data from '../../../data/cadastro_eleitoral.json';
 
 export const metadata = {
-  title: "Estatísticas de Cadastro Eleitoral — Agregações",
-  description: "Tabela de agregações de locais de votação do TRE-RN.",
+  title: 'Agregações — Cadastro Eleitoral RN',
+  description: 'Painel analítico de agregações por ciclo.',
 };
 
 export default function Page() {
   return (
     <Suspense>
-      <AgregacoesClient initialData={data} />
+      <AgregacoesOverview initialData={data} />
     </Suspense>
   );
 }

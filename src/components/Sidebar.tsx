@@ -3,17 +3,30 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Database, LayoutDashboard, Menu, X, History } from 'lucide-react';
+import { BarChart3, BarChart2, Database, LayoutDashboard, Menu, X, History } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
-const navigation = [
-  { name: 'Estatística',      href: '/',                    icon: BarChart3 },
-  { name: 'Agregações',       href: '/agregacoes',          icon: Database  },
-  { name: 'Ciclos guardados', href: '/agregacoes/ciclos',   icon: History   },
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  sub: boolean;
+  authRequired: boolean;
+}
+
+const navigation: NavItem[] = [
+  { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false },
+  { name: 'Agregações',   href: '/agregacoes',           icon: Database,  sub: false, authRequired: false },
+  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: false },
+  { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true  },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
+
+  const visibleNav = navigation.filter(item => !item.authRequired || !!user);
 
   return (
     <>
@@ -51,12 +64,14 @@ export default function Sidebar() {
           <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-4)] px-[10px] pb-[10px]">
             Navegação
           </div>
-          {navigation.map((item) => {
+
+          {visibleNav.map((item) => {
             const active = item.href === '/'
               ? pathname === '/'
-              : pathname.startsWith(item.href);
+              : item.href === '/agregacoes'
+                ? pathname === '/agregacoes'
+                : pathname.startsWith(item.href);
             const Icon = item.icon;
-            const isSubItem = item.href.split('/').length > 2;
 
             return (
               <Link
@@ -65,18 +80,17 @@ export default function Sidebar() {
                 onClick={() => setOpen(false)}
                 className={`
                   relative flex items-center gap-[11px]
-                  ${isSubItem ? 'pl-[32px] py-[7px]' : 'px-3 py-[9px]'}
+                  ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
                   rounded-[var(--r-md)] mb-[3px]
-                  text-[13.5px] font-medium border transition-colors duration-[120ms]
+                  font-medium border transition-colors duration-[120ms]
                   ${active
                     ? 'bg-[var(--accent-soft-bg)] text-[var(--accent-text)] border-[var(--accent-soft-bd)] font-semibold'
                     : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
                   }
-                  ${isSubItem ? 'text-[12.5px]' : ''}
                 `}
               >
                 <Icon
-                  size={isSubItem ? 15 : 18}
+                  size={item.sub ? 15 : 18}
                   className={active ? 'text-[var(--accent-text)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
                 />
                 <span>{item.name}</span>
