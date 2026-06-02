@@ -54,6 +54,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   const [clearingCiclo, setClearingCiclo] = useState(false);
   const [showLoadWarning, setShowLoadWarning] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
   const [showClearWarning, setShowClearWarning] = useState(false);
+  // Ref para evitar o modal de carregamento quando a navegação vem de um save
+  const skipLoadWarningRef = useRef<string | null>(null);
   const [agregacoesData, setAgregacoesData] = useState<Record<string, AgregacaoFields>>({});
   // Drafts locais do campo TOTAL enquanto edita (valores não confirmados)
   const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
@@ -201,7 +203,14 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
     if (cicloAtivo?.id === urlCicloId) return; // já ativo, sem ação
 
-    // Ciclo diferente — mostrar aviso de sobreposição
+    // Navegação veio de um save — apenas ativar o ciclo sem aviso
+    if (skipLoadWarningRef.current === urlCicloId) {
+      skipLoadWarningRef.current = null;
+      setCicloAtivo({ id: urlCicloId, capitalLimit: cap, interiorLimit: int });
+      return;
+    }
+
+    // Ciclo diferente via sidebar — mostrar aviso de sobreposição
     setShowLoadWarning({ id: urlCicloId, capitalLimit: cap, interiorLimit: int });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlCicloId]);
@@ -233,6 +242,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
         rows,
       });
       const next = { id: cicloId, capitalLimit, interiorLimit };
+      skipLoadWarningRef.current = cicloId;
       setCicloAtivo(next);
       router.replace(`/agregacoes?ciclo=${cicloId}`);
     } catch (err) {
