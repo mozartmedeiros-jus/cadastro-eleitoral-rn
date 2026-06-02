@@ -3,13 +3,15 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Database,
-  Moon, Sun, Monitor, Check, MapPin, SlidersHorizontal, X
+  Moon, Sun, Monitor, Check, MapPin, SlidersHorizontal, X,
+  Save, AlertTriangle, Plus
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
-import { doc, setDoc, serverTimestamp, collection, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc } from 'firebase/firestore';
 
 interface SecaoDetalhe {
   secao: string;
@@ -39,9 +41,19 @@ function padSecao(secao: string) {
 
 export default function AgregacoesClient({ initialData }: { initialData: LocationData[] }) {
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const { user, canEdit } = useAuth();
+
+  // Ciclos
+  const [cicloAtivo, setCicloAtivo] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
+  const [savingCiclo, setSavingCiclo] = useState(false);
+  const [loadingCiclo, setLoadingCiclo] = useState(false);
+  const [clearingCiclo, setClearingCiclo] = useState(false);
+  const [showLoadWarning, setShowLoadWarning] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
+  const [showClearWarning, setShowClearWarning] = useState(false);
   const [agregacoesData, setAgregacoesData] = useState<Record<string, AgregacaoFields>>({});
   // Drafts locais do campo TOTAL enquanto edita (valores não confirmados)
   const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
@@ -157,6 +169,156 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Reagir ao param ?ciclo= da URL (navegação via sidebar)
+  const urlCicloId = searchParams.get('ciclo');
+  useEffect(() => {
+    if (!urlCicloId) {
+      // URL sem ciclo — limpar ciclo ativo sem aviso
+      if (cicloAtivo) setCicloAtivo(null);
+      return;
+    }
+    const parts = urlCicloId.split('-');
+    const cap = Number(parts[0]);
+    const int = Number(parts[1]);
+    if (isNaN(cap) || isNaN(int)) return;
+
+    if (cicloAtivo?.id === urlCicloId) return; // já ativo, sem ação
+
+    // Ciclo diferente — mostrar aviso de sobreposição
+    setShowLoadWarning({ id: urlCicloId, capitalLimit: cap, interiorLimit: int });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlCicloId]);
+
+  // Salvar ciclo atual
+  const saveCiclo = useCallback(async () => {
+    const cicloId = `${capitalLimit}-${interiorLimit}`;
+    const rows: Record<string, object> = {};
+    initialData.forEach(item => {
+      const rowId = makeRowId(item.zona, item.municipio, item.local);
+      const fields = agregacoesData[rowId];
+      if (fields?.agregar === true || fields?.total !== undefined) {
+        rows[rowId] = {
+          zona: item.zona,
+          municipio: item.municipio,
+          local: item.local,
+          ...(fields.agregar !== undefined && { agregar: fields.agregar }),
+          ...(fields.total !== undefined && { total: fields.total }),
+        };
+      }
+    });
+    setSavingCiclo(true);
+    try {
+      await setDoc(doc(db, 'ciclos', cicloId), {
+        capitalLimit,
+        interiorLimit,
+        savedAt: serverTimestamp(),
+        savedBy: auth.currentUser?.email ?? null,
+        rows,
+      });
+      const next = { id: cicloId, capitalLimit, interiorLimit };
+      setCicloAtivo(next);
+      router.replace(`/agregacoes?ciclo=${cicloId}`);
+    } catch (err) {
+      console.error('Save ciclo failed:', err);
+    } finally {
+      setSavingCiclo(false);
+    }
+  }, [capitalLimit, interiorLimit, agregacoesData, initialData, router]);
+
+  // Carregar ciclo no Firestore (chamado após confirmação)
+  const loadCiclo = useCallback(async (cicloId: string, cap: number, int: number) => {
+    setLoadingCiclo(true);
+    try {
+      const snap = await getDoc(doc(db, 'ciclos', cicloId));
+      if (!snap.exists()) return;
+      const cicloRows = (snap.data().rows ?? {}) as Record<string, { agregar?: boolean; total?: number }>;
+
+      const batch = writeBatch(db);
+
+      // Deletar linhas atuais de agregacoes que NÃO estão no ciclo
+      Object.keys(agregacoesData).forEach(rowId => {
+        if (!cicloRows[rowId]) {
+          batch.delete(doc(db, 'agregacoes', rowId));
+        }
+      });
+
+      // Escrever linhas do ciclo em agregacoes
+      Object.entries(cicloRows).forEach(([rowId, fields]) => {
+        batch.set(doc(db, 'agregacoes', rowId), {
+          ...(fields.agregar !== undefined && { agregar: fields.agregar }),
+          ...(fields.total !== undefined && { total: fields.total }),
+          updatedAt: serverTimestamp(),
+          updatedBy: auth.currentUser?.email ?? null,
+        });
+      });
+
+      await batch.commit();
+
+      setCapitalInput(String(cap)); setCapitalLimit(cap);
+      setInteriorInput(String(int)); setInteriorLimit(int);
+      setCicloAtivo({ id: cicloId, capitalLimit: cap, interiorLimit: int });
+      setShowLoadWarning(null);
+      router.replace(`/agregacoes?ciclo=${cicloId}`);
+    } catch (err) {
+      console.error('Load ciclo failed:', err);
+    } finally {
+      setLoadingCiclo(false);
+    }
+  }, [agregacoesData, router]);
+
+  // Regravar ciclo ativo com o estado atual
+  const regravarCiclo = useCallback(async () => {
+    if (!cicloAtivo) return;
+    const { id: cicloId, capitalLimit: cap, interiorLimit: int } = cicloAtivo;
+    const rows: Record<string, object> = {};
+    initialData.forEach(item => {
+      const rowId = makeRowId(item.zona, item.municipio, item.local);
+      const fields = agregacoesData[rowId];
+      if (fields?.agregar === true || fields?.total !== undefined) {
+        rows[rowId] = {
+          zona: item.zona,
+          municipio: item.municipio,
+          local: item.local,
+          ...(fields.agregar !== undefined && { agregar: fields.agregar }),
+          ...(fields.total !== undefined && { total: fields.total }),
+        };
+      }
+    });
+    setSavingCiclo(true);
+    try {
+      await setDoc(doc(db, 'ciclos', cicloId), {
+        capitalLimit: cap,
+        interiorLimit: int,
+        savedAt: serverTimestamp(),
+        savedBy: auth.currentUser?.email ?? null,
+        rows,
+      });
+    } catch (err) {
+      console.error('Regravar ciclo failed:', err);
+    } finally {
+      setSavingCiclo(false);
+    }
+  }, [cicloAtivo, agregacoesData, initialData]);
+
+  // Apagar todos os dados de agregacoes para iniciar novo ciclo
+  const novoCiclo = useCallback(async () => {
+    setClearingCiclo(true);
+    try {
+      const batch = writeBatch(db);
+      Object.keys(agregacoesData).forEach(rowId => {
+        batch.delete(doc(db, 'agregacoes', rowId));
+      });
+      await batch.commit();
+      setCicloAtivo(null);
+      setShowClearWarning(false);
+      router.replace('/agregacoes');
+    } catch (err) {
+      console.error('Novo ciclo failed:', err);
+    } finally {
+      setClearingCiclo(false);
+    }
+  }, [agregacoesData, router]);
 
   const handleCalculate = () => {
     setCapitalLimit(Number(capitalInput) || 0);
@@ -293,6 +455,78 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
   return (
     <div className="min-h-full bg-bg text-ink pb-14">
+
+      {/* ── Modal de aviso de sobreposição ──────────────────────── */}
+      {showLoadWarning && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-[8px] shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
+              <div>
+                <h2 className="text-[15px] font-bold text-[var(--ink)] mb-1">
+                  Carregar Ciclo {showLoadWarning.id}
+                </h2>
+                <p className="text-[13px] text-[var(--ink-2)] leading-relaxed">
+                  Os dados atuais de <strong>AGREGAR</strong> e <strong>TOTAL</strong> serão
+                  substituídos pelos valores salvos neste ciclo. Linhas que não fazem parte
+                  do ciclo serão removidas. Esta ação não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowLoadWarning(null)}
+                className="h-9 px-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--surface-3)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => loadCiclo(showLoadWarning.id, showLoadWarning.capitalLimit, showLoadWarning.interiorLimit)}
+                disabled={loadingCiclo}
+                className="h-9 px-4 rounded-[6px] bg-warn border border-warn text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {loadingCiclo ? 'Carregando…' : 'Confirmar carregamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de novo ciclo ─────────────────────────────────── */}
+      {showClearWarning && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-[8px] shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle size={20} className="text-danger shrink-0 mt-0.5" />
+              <div>
+                <h2 className="text-[15px] font-bold text-[var(--ink)] mb-1">
+                  Iniciar novo ciclo
+                </h2>
+                <p className="text-[13px] text-[var(--ink-2)] leading-relaxed">
+                  Todos os dados de <strong>AGREGAR</strong> e <strong>TOTAL</strong> serão
+                  apagados permanentemente da tela. Os ciclos já salvos não são afetados.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowClearWarning(false)}
+                className="h-9 px-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--surface-3)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={novoCiclo}
+                disabled={clearingCiclo}
+                className="h-9 px-4 rounded-[6px] bg-danger border border-danger text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {clearingCiclo ? 'Apagando…' : 'Confirmar — apagar tudo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 bg-surface border-b border-border">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
@@ -353,6 +587,43 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
           </div>
         </div>
       </header>
+
+      {/* ── Banner de ciclo ativo ────────────────────────────────── */}
+      {cicloAtivo && (
+        <div className="border-b border-[var(--warn-border,#f0c14b)] bg-[var(--warn-soft,#fffbeb)]">
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-3 flex-wrap">
+            <AlertTriangle size={15} className="text-warn shrink-0" />
+            <span className="text-[13px] font-semibold text-[var(--ink)]">
+              Ciclo {cicloAtivo.id} ativo
+            </span>
+            <span className="text-[12.5px] text-[var(--ink-2)]">
+              — Os dados de AGREGAR e TOTAL foram carregados deste ciclo.
+            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              {canEdit && (
+                <button
+                  onClick={regravarCiclo}
+                  disabled={savingCiclo}
+                  className="inline-flex items-center gap-1.5 h-7 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--surface-3)] disabled:opacity-50 transition-colors"
+                >
+                  <Save size={12} />
+                  {savingCiclo ? 'Salvando…' : 'Regravar ciclo'}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setCicloAtivo(null);
+                  router.replace('/agregacoes');
+                }}
+                className="h-7 w-7 grid place-items-center rounded-[4px] text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] transition-colors"
+                title="Fechar"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* ── Resumo da agregação ───────────────────────────────── */}
@@ -503,6 +774,25 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   >
                     Calcular
                   </button>
+                  {canEdit && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={saveCiclo}
+                        disabled={savingCiclo}
+                        className="h-10 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+                      >
+                        <Save size={14} />
+                        {savingCiclo ? 'Salvando…' : `Salvar ciclo ${capitalLimit}-${interiorLimit}`}
+                      </button>
+                      <button
+                        onClick={() => setShowClearWarning(true)}
+                        className="h-10 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink transition-colors inline-flex items-center gap-2"
+                      >
+                        <Plus size={14} />
+                        Novo ciclo
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

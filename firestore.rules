@@ -37,6 +37,11 @@ service cloud.firestore {
       allow delete: if isAuthorizedAdmin();
     }
 
+    match /ciclos/{cicloId} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import AgregacoesClient from './AgregacoesClient';
 import data from '../../../data/cadastro_eleitoral.json';
 
@@ -8,6 +9,8 @@ export const metadata = {
 
 export default function Page() {
   return (
-    <AgregacoesClient initialData={data} />
+    <Suspense>
+      <AgregacoesClient initialData={data} />
+    </Suspense>
   );
 }

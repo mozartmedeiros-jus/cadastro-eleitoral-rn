@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Database, LayoutDashboard, Menu, X } from 'lucide-react';
+import { BarChart3, Database, LayoutDashboard, Menu, X, ChevronDown, History } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const navigation = [
   { name: 'Estatística', href: '/', icon: BarChart3 },
@@ -13,6 +15,22 @@ const navigation = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [ciclos, setCiclos] = useState<Array<{ id: string }>>([]);
+  const [ciclosOpen, setCiclosOpen] = useState(false);
+
+  useEffect(() => {
+    if (pathname === '/agregacoes') {
+      getDocs(collection(db, 'ciclos')).then(snap => {
+        const list = snap.docs
+          .map(d => ({ id: d.id }))
+          .sort((a, b) => a.id.localeCompare(b.id));
+        setCiclos(list);
+        if (list.length > 0) setCiclosOpen(true);
+      }).catch(() => {});
+    }
+  }, [pathname]);
+
+  const isAgregacoes = pathname === '/agregacoes';
 
   return (
     <>
@@ -50,33 +68,79 @@ export default function Sidebar() {
           <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-4)] px-[10px] pb-[10px]">
             Navegação
           </div>
+
           {navigation.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`
-                  relative flex items-center gap-[11px]
-                  px-3 py-[9px] rounded-[var(--r-md)] mb-[3px]
-                  text-[13.5px] font-medium border transition-colors duration-[120ms]
-                  ${active
-                    ? 'bg-[var(--accent-soft-bg)] text-[var(--accent-text)] border-[var(--accent-soft-bd)] font-semibold'
-                    : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
-                  }
-                `}
-              >
-                <Icon
-                  size={18}
-                  className={active ? 'text-[var(--accent-text)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
-                />
-                <span>{item.name}</span>
-                {active && (
-                  <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent-fill)] rounded-r-[3px]" />
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={`
+                    relative flex items-center gap-[11px]
+                    px-3 py-[9px] rounded-[var(--r-md)] mb-[3px]
+                    text-[13.5px] font-medium border transition-colors duration-[120ms]
+                    ${active
+                      ? 'bg-[var(--accent-soft-bg)] text-[var(--accent-text)] border-[var(--accent-soft-bd)] font-semibold'
+                      : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
+                    }
+                  `}
+                >
+                  <Icon
+                    size={18}
+                    className={active ? 'text-[var(--accent-text)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
+                  />
+                  <span>{item.name}</span>
+                  {active && (
+                    <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent-fill)] rounded-r-[3px]" />
+                  )}
+                </Link>
+
+                {/* Ciclos submenu — só em /agregacoes */}
+                {item.href === '/agregacoes' && isAgregacoes && ciclos.length > 0 && (
+                  <div className="mb-[3px]">
+                    <button
+                      onClick={() => setCiclosOpen(v => !v)}
+                      className="w-full flex items-center gap-[11px] px-3 py-[7px] rounded-[var(--r-md)] text-[12.5px] font-medium text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] border border-transparent transition-colors duration-[120ms]"
+                    >
+                      <History size={15} className="text-[var(--ink-4)] shrink-0" />
+                      <span className="flex-1 text-left">Ciclos guardados</span>
+                      <ChevronDown
+                        size={13}
+                        className={`text-[var(--ink-4)] transition-transform duration-150 ${ciclosOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {ciclosOpen && (
+                      <div className="mt-[2px] ml-[14px] border-l border-[var(--border)] pl-[10px] space-y-[2px]">
+                        {ciclos.map(c => {
+                          const cicloActive = pathname === '/agregacoes' &&
+                            typeof window !== 'undefined' &&
+                            new URLSearchParams(window.location.search).get('ciclo') === c.id;
+                          return (
+                            <Link
+                              key={c.id}
+                              href={`/agregacoes?ciclo=${c.id}`}
+                              onClick={() => setOpen(false)}
+                              className={`
+                                flex items-center gap-2 px-2.5 py-[6px] rounded-[var(--r-sm)]
+                                text-[12.5px] font-medium border transition-colors duration-[120ms]
+                                ${cicloActive
+                                  ? 'bg-[var(--accent-soft-bg)] text-[var(--accent-text)] border-[var(--accent-soft-bd)]'
+                                  : 'text-[var(--ink-3)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
+                                }
+                              `}
+                            >
+                              <span className="font-mono text-[11px]">{c.id}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </Link>
+              </div>
             );
           })}
         </nav>
