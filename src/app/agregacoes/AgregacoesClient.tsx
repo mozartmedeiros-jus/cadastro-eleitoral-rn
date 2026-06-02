@@ -285,7 +285,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
       setInteriorInput(String(int)); setInteriorLimit(int);
       setCicloAtivo({ id: cicloId, capitalLimit: cap, interiorLimit: int });
       setShowLoadWarning(null);
-      router.replace(`/agregacoes?ciclo=${cicloId}`);
     } catch (err) {
       console.error('Load ciclo failed:', err);
     } finally {
