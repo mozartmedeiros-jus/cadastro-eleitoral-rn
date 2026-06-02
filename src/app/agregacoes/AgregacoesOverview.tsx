@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db, makeRowId } from '@/lib/firebase';
-import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
 interface SecaoDetalhe { secao: string; aptos: number; }
 interface LocationData {
@@ -105,7 +105,8 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
     return filteredData.slice(start, start + PAGE_SIZE);
   }, [filteredData, currentPage]);
 
-  const getBadgeClass = (aptos: number, limit: number) => {
+  const getBadgeClass = (aptos: number, limit: number | null) => {
+    if (limit === null) return 'bg-surface border-border-strong text-ink-3';
     if (aptos <= 50) return 'bg-danger-soft border-danger-border text-danger';
     if (aptos <= limit) return 'bg-accent-soft border-accent-soft-border text-accent';
     return 'bg-surface border-border-strong text-ink-3';
@@ -127,8 +128,16 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             </h1>
           </div>
 
-          {/* Filtros — ZONA · MUNICÍPIO · CICLO */}
+          {/* Filtros — LIMPAR · ZONA · MUNICÍPIO · CICLO */}
           <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+            {(zonaFilter || municipioFilter || selectedId) && (
+              <button
+                onClick={() => { setZonaFilter(''); setMunicipioFilter(''); setSelectedId(''); setCurrentPage(1); }}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] border border-danger-border bg-danger-soft text-danger text-[13px] font-semibold hover:opacity-80 transition-colors"
+              >
+                <X size={13} /> Limpar
+              </button>
+            )}
             <div className="relative">
               <select
                 value={zonaFilter}
@@ -155,7 +164,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             <div className="relative">
               <select
                 value={selectedId}
-                onChange={e => { setSelectedId(e.target.value); setCurrentPage(1); }}
+                onChange={e => { setSelectedId(e.target.value); setZonaFilter(''); setMunicipioFilter(''); setCurrentPage(1); }}
                 disabled={loadingCiclos}
                 className="ds-select h-9 pl-3 pr-9 min-w-[140px] text-[13px] font-semibold"
               >
@@ -204,15 +213,30 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
         )}
 
         {/* Tabela */}
-        <div className="flex items-baseline gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">
             Locais de votação
           </h2>
-          <span className="text-[11.5px] text-ink-4">
+          <span className="text-[11.5px] text-ink-4 whitespace-nowrap">
             {formatNumber(filteredData.length)} locais
             {ciclo ? ` · ciclo ${selectedId} aplicado` : ''}
           </span>
           <span className="flex-1 h-px bg-border" />
+          {/* Legenda — só com ciclo selecionado */}
+          {ciclo && <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-[22px] h-[14px] rounded-[3px] bg-danger-soft border border-danger-border" />
+              <span>≤ 50 eleitores</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-[22px] h-[14px] rounded-[3px] bg-accent-soft border border-accent-soft-border" />
+              <span>dentro do limite</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-[22px] h-[14px] rounded-[3px] bg-surface border border-border-strong" />
+              <span>acima do limite</span>
+            </div>
+          </div>}
         </div>
 
         <section className="ds-card overflow-hidden">
@@ -235,7 +259,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                   const isCapital = row.municipio.trim().toUpperCase() === 'NATAL';
                   const limit = ciclo
                     ? (isCapital ? ciclo.capitalLimit : ciclo.interiorLimit)
-                    : 200;
+                    : null;
                   return (
                     <tr key={rowId} className="border-b border-border-faint hover:bg-surface-2 transition-colors">
                       <td className="px-4 py-3 text-center font-semibold text-ink-2 num">{row.zona}</td>
