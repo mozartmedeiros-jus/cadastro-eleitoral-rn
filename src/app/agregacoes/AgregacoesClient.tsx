@@ -135,23 +135,39 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   const [localFilter, setLocalFilter] = useState('');
   const [showOnlyAggregated, setShowOnlyAggregated] = useState(false);
 
-  // Opções para os Selects (Filtragem em cadeia)
+  // Opções para os Selects (Filtragem em cadeia + respeita toggle "Marcados")
   const uniqueZonas = useMemo(() => {
-    return Array.from(new Set(initialData.map(item => String(item.zona))))
+    let data = initialData;
+    if (showOnlyAggregated) {
+      data = data.filter(item =>
+        agregacoesData[makeRowId(item.zona, item.municipio, item.local)]?.agregar === true
+      );
+    }
+    return Array.from(new Set(data.map(item => String(item.zona))))
       .sort((a, b) => Number(a) - Number(b));
-  }, [initialData]);
+  }, [initialData, showOnlyAggregated, agregacoesData]);
 
   const uniqueMunicipios = useMemo(() => {
     let data = initialData;
+    if (showOnlyAggregated) {
+      data = data.filter(item =>
+        agregacoesData[makeRowId(item.zona, item.municipio, item.local)]?.agregar === true
+      );
+    }
     if (zonaFilter !== '') {
       data = data.filter(item => String(item.zona) === zonaFilter);
     }
     return Array.from(new Set(data.map(item => item.municipio)))
       .sort((a, b) => a.localeCompare(b));
-  }, [initialData, zonaFilter]);
+  }, [initialData, zonaFilter, showOnlyAggregated, agregacoesData]);
 
   const uniqueLocais = useMemo(() => {
     let data = initialData;
+    if (showOnlyAggregated) {
+      data = data.filter(item =>
+        agregacoesData[makeRowId(item.zona, item.municipio, item.local)]?.agregar === true
+      );
+    }
     if (zonaFilter !== '') {
       data = data.filter(item => String(item.zona) === zonaFilter);
     }
@@ -160,7 +176,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     }
     return Array.from(new Set(data.map(item => item.local)))
       .sort((a, b) => a.localeCompare(b));
-  }, [initialData, zonaFilter, municipioFilter]);
+  }, [initialData, zonaFilter, municipioFilter, showOnlyAggregated, agregacoesData]);
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -422,20 +438,22 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     return 'bg-surface border-border-strong text-ink-3';
   };
 
-  // Resumo da agregação (apresentação)
+  // Resumo da agregação — somente linhas com AGREGAR marcado
   const summary = useMemo(() => {
-    let secoes = 0;
-    let agregadas = 0;
-    let totalSum = 0;
-    filteredData.forEach((d) => {
-      const rid = makeRowId(d.zona, d.municipio, d.local);
-      secoes += (d.secoes_detalhes || []).length;
-      if (agregacoesData[rid]?.agregar) agregadas += 1;
-      totalSum += getTotal(rid);
-    });
-    return { locais: filteredData.length, secoes, agregadas, totalSum };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredData, agregacoesData, totalDrafts]);
+    const agregadoRows = filteredData.filter(d =>
+      agregacoesData[makeRowId(d.zona, d.municipio, d.local)]?.agregar === true
+    );
+    return {
+      locais: agregadoRows.length,
+      secoes: agregadoRows.reduce((s, d) => s + (d.secoes_detalhes || []).length, 0),
+      secoesAgregadas: agregadoRows.reduce((s, d) => {
+        const rid = makeRowId(d.zona, d.municipio, d.local);
+        return s + (agregacoesData[rid]?.total ?? 0);
+      }, 0),
+      totalEleitores: agregadoRows.reduce((s, d) =>
+        s + (d.secoes_detalhes || []).reduce((ss, sec) => ss + sec.aptos, 0), 0),
+    };
+  }, [filteredData, agregacoesData]);
 
   const hasFilter = zonaFilter || municipioFilter || localFilter || showOnlyAggregated;
 
@@ -635,10 +653,10 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
         <section className="ds-card overflow-hidden mb-[22px]">
           <div className="grid grid-cols-2 md:grid-cols-4">
             {[
-              { label: 'Locais', value: summary.locais },
-              { label: 'Seções', value: summary.secoes },
-              { label: 'Seções agregadas', value: summary.agregadas },
-              { label: 'Total de eleitores', value: summary.totalSum },
+              { label: 'Locais',             value: summary.locais },
+              { label: 'Seções',             value: summary.secoes },
+              { label: 'Seções agregadas',   value: summary.secoesAgregadas },
+              { label: 'Total de eleitores', value: summary.totalEleitores },
             ].map((k, i) => (
               <div
                 key={k.label}
