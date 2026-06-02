@@ -241,10 +241,17 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
         savedBy: auth.currentUser?.email ?? null,
         rows,
       });
-      const next = { id: cicloId, capitalLimit, interiorLimit };
-      skipLoadWarningRef.current = cicloId;
-      setCicloAtivo(next);
-      router.replace(`/agregacoes?ciclo=${cicloId}`);
+      // Apagar dados da tela após salvar — consulta fica disponível no painel Agregações
+      const cleanBatch = writeBatch(db);
+      Object.keys(agregacoesData).forEach(rowId => {
+        cleanBatch.delete(doc(db, 'agregacoes', rowId));
+      });
+      await cleanBatch.commit();
+      setCicloAtivo(null);
+      setCapitalInput('');
+      setInteriorInput('');
+      setCapitalLimit(0);
+      setInteriorLimit(0);
     } catch (err) {
       console.error('Save ciclo failed:', err);
     } finally {
@@ -307,7 +314,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
       setInteriorInput('');
       setCapitalLimit(0);
       setInteriorLimit(0);
-      router.replace('/agregacoes');
+      router.replace('/agregacoes/analise');
     } catch (err) {
       console.error('Novo ciclo failed:', err);
     } finally {

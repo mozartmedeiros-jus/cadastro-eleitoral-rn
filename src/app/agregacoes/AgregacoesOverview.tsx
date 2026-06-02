@@ -32,6 +32,8 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
   const [ciclos, setCiclos] = useState<CicloDoc[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
   const [loadingCiclos, setLoadingCiclos] = useState(true);
+  const [zonaFilter, setZonaFilter] = useState('');
+  const [municipioFilter, setMunicipioFilter] = useState('');
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'ciclos'), snap => {
@@ -60,8 +62,8 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
 
   const ciclo = ciclos.find(c => c.id === selectedId) ?? null;
 
-  // Linhas com AGREGAR marcado, enriquecidas com secoes_detalhes do JSON
-  const agregadoRows = useMemo(() => {
+  // Todas as linhas AGREGAR do ciclo, enriquecidas com secoes_detalhes do JSON
+  const baseRows = useMemo(() => {
     if (!ciclo) return [];
     return Object.entries(ciclo.rows)
       .filter(([, r]) => r.agregar === true)
@@ -79,6 +81,25 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
         return a.municipio.localeCompare(b.municipio) || a.local.localeCompare(b.local);
       });
   }, [ciclo, rowMap]);
+
+  // Opções de filtro — somente valores presentes no ciclo
+  const uniqueZonas = useMemo(() =>
+    Array.from(new Set(baseRows.map(r => String(r.zona))))
+      .sort((a, b) => Number(a) - Number(b))
+  , [baseRows]);
+
+  const uniqueMunicipios = useMemo(() => {
+    const source = zonaFilter ? baseRows.filter(r => String(r.zona) === zonaFilter) : baseRows;
+    return Array.from(new Set(source.map(r => r.municipio))).sort((a, b) => a.localeCompare(b));
+  }, [baseRows, zonaFilter]);
+
+  // Linhas após filtros aplicados
+  const agregadoRows = useMemo(() => {
+    let rows = baseRows;
+    if (zonaFilter) rows = rows.filter(r => String(r.zona) === zonaFilter);
+    if (municipioFilter) rows = rows.filter(r => r.municipio === municipioFilter);
+    return rows;
+  }, [baseRows, zonaFilter, municipioFilter]);
 
   const kpis = useMemo(() => {
     const secoes = agregadoRows.reduce((s, r) => s + r.secoes_detalhes.length, 0);
@@ -110,22 +131,46 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             </h1>
           </div>
 
-          {/* Seletor de ciclo */}
-          <div className="flex items-center gap-2 shrink-0">
-            <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 whitespace-nowrap">
-              Ciclo
-            </label>
+          {/* Filtros + seletor de ciclo — ordem: ZONA · MUNICÍPIO · CICLO */}
+          <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+            {/* ZONA — só quando ciclo selecionado */}
+            {ciclo && (
+              <div className="relative">
+                <select
+                  value={zonaFilter}
+                  onChange={e => { setZonaFilter(e.target.value); setMunicipioFilter(''); }}
+                  className="ds-select h-9 pl-3 pr-8 min-w-[110px] text-[13px]"
+                >
+                  <option value="">Todas as zonas</option>
+                  {uniqueZonas.map(z => <option key={z} value={z}>Zona {z}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+              </div>
+            )}
+            {/* MUNICÍPIO — só quando ciclo selecionado */}
+            {ciclo && (
+              <div className="relative">
+                <select
+                  value={municipioFilter}
+                  onChange={e => setMunicipioFilter(e.target.value)}
+                  className="ds-select h-9 pl-3 pr-8 min-w-[160px] text-[13px]"
+                >
+                  <option value="">Todos os municípios</option>
+                  {uniqueMunicipios.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+              </div>
+            )}
+            {/* CICLO */}
             <div className="relative">
               <select
                 value={selectedId}
-                onChange={e => setSelectedId(e.target.value)}
+                onChange={e => { setSelectedId(e.target.value); setZonaFilter(''); setMunicipioFilter(''); }}
                 disabled={loadingCiclos}
                 className="ds-select h-9 pl-3 pr-9 min-w-[140px] text-[13px] font-semibold"
               >
-                <option value="">Selecionar…</option>
-                {ciclos.map(c => (
-                  <option key={c.id} value={c.id}>{c.id}</option>
-                ))}
+                <option value="">Ciclo…</option>
+                {ciclos.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
               </select>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
             </div>
