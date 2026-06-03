@@ -3,14 +3,12 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Database,
-  Moon, Sun, Monitor, Check, MapPin, SlidersHorizontal, X,
+  Check, MapPin, SlidersHorizontal, X,
   Save, AlertTriangle, Plus, History, RotateCcw
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
-import AuthButton from '@/components/AuthButton';
 import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc, Timestamp } from 'firebase/firestore';
 
 interface SecaoDetalhe {
@@ -47,10 +45,8 @@ function padSecao(secao: string) {
 }
 
 export default function AgregacoesClient({ initialData }: { initialData: LocationData[] }) {
-  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const { user, canEdit } = useAuth();
 
   // Ciclos
@@ -386,13 +382,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     }
   };
 
-  const getThemeIcon = () => {
-    if (!mounted) return <Moon size={16} />;
-    if (theme === 'light') return <Sun size={16} />;
-    if (theme === 'dark') return <Moon size={16} />;
-    return <Monitor size={16} />;
-  };
-
   // Determina a cor do badge de uma seção — sutil: cor só na borda/texto, fundo neutro
   const getBadgeClasses = (aptos: number, limit: number) => {
     if (aptos <= 50) {
@@ -528,50 +517,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             </h1>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <div className="w-px h-[26px] bg-border" />
-
-            {/* Tema */}
-            <div className="relative">
-              <button
-                onClick={() => setShowThemeMenu(!showThemeMenu)}
-                className="grid place-items-center w-[38px] h-[38px] rounded-[6px] bg-surface border border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors"
-                aria-label="Mudar tema"
-              >
-                {getThemeIcon()}
-              </button>
-              {showThemeMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowThemeMenu(false)} />
-                  <div
-                    className="absolute right-0 mt-1.5 w-[152px] rounded-[6px] bg-surface border border-border-strong p-1.5 z-50"
-                    style={{ boxShadow: 'var(--shadow-menu)' }}
-                  >
-                    {[
-                      { id: 'light', label: 'Claro', icon: Sun },
-                      { id: 'dark', label: 'Escuro', icon: Moon },
-                      { id: 'system', label: 'Sistema', icon: Monitor },
-                    ].map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => { setTheme(t.id); setShowThemeMenu(false); }}
-                        className={
-                          'w-full flex items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-[13px] font-medium text-left transition-colors ' +
-                          (theme === t.id ? 'bg-accent-soft text-accent font-semibold' : 'text-ink-2 hover:text-ink hover:bg-surface-3')
-                        }
-                      >
-                        <t.icon size={14} />
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Autenticação */}
-            <AuthButton />
-          </div>
         </div>
       </header>
 
