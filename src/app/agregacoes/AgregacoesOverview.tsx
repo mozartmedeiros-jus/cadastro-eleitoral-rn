@@ -56,24 +56,33 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
 
   const ciclo = ciclos.find(c => c.id === selectedId) ?? null;
 
-  // Filtros derivados do dataset completo do RN
-  const uniqueZonas = useMemo(() =>
-    Array.from(new Set(initialData.map(r => String(r.zona))))
-      .sort((a, b) => Number(a) - Number(b))
-  , [initialData]);
+  // Filtros — quando ciclo selecionado, restringe às zonas/municípios do ciclo
+  const uniqueZonas = useMemo(() => {
+    const src = ciclo
+      ? initialData.filter(r => makeRowId(r.zona, r.municipio, r.local) in ciclo.rows)
+      : initialData;
+    return Array.from(new Set(src.map(r => String(r.zona))))
+      .sort((a, b) => Number(a) - Number(b));
+  }, [initialData, ciclo]);
 
   const uniqueMunicipios = useMemo(() => {
-    const src = zonaFilter ? initialData.filter(r => String(r.zona) === zonaFilter) : initialData;
-    return Array.from(new Set(src.map(r => r.municipio))).sort((a, b) => a.localeCompare(b));
-  }, [initialData, zonaFilter]);
+    const src = ciclo
+      ? initialData.filter(r => makeRowId(r.zona, r.municipio, r.local) in ciclo.rows)
+      : initialData;
+    const filtered = zonaFilter ? src.filter(r => String(r.zona) === zonaFilter) : src;
+    return Array.from(new Set(filtered.map(r => r.municipio))).sort((a, b) => a.localeCompare(b));
+  }, [initialData, zonaFilter, ciclo]);
 
-  // Dataset filtrado
+  // Dataset filtrado — quando ciclo selecionado, exibe só as linhas do ciclo
   const filteredData = useMemo(() => {
     let data = initialData;
+    if (ciclo) {
+      data = data.filter(r => makeRowId(r.zona, r.municipio, r.local) in ciclo.rows);
+    }
     if (zonaFilter) data = data.filter(r => String(r.zona) === zonaFilter);
     if (municipioFilter) data = data.filter(r => r.municipio === municipioFilter);
     return data;
-  }, [initialData, zonaFilter, municipioFilter]);
+  }, [initialData, zonaFilter, municipioFilter, ciclo]);
 
   // Mapa rowId → campos do ciclo selecionado
   const cicloMap = useMemo(() => {
@@ -124,7 +133,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
               <span className="text-accent font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
             </div>
             <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
-              <BarChart2 size={20} className="text-accent shrink-0" /> Agregações
+              <BarChart2 size={20} className="text-accent shrink-0" /> Análise de Agregações Eleitorais
             </h1>
           </div>
 
@@ -222,8 +231,8 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             {ciclo ? ` · ciclo ${selectedId} aplicado` : ''}
           </span>
           <span className="flex-1 h-px bg-border" />
-          {/* Legenda — só com ciclo selecionado */}
-          {ciclo && <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
+          {/* Legenda — sempre visível */}
+          <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
             <div className="flex items-center gap-1.5">
               <span className="w-[22px] h-[14px] rounded-[3px] bg-danger-soft border border-danger-border" />
               <span>≤ 50 eleitores</span>
@@ -236,7 +245,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
               <span className="w-[22px] h-[14px] rounded-[3px] bg-surface border border-border-strong" />
               <span>acima do limite</span>
             </div>
-          </div>}
+          </div>
         </div>
 
         <section className="ds-card overflow-hidden">

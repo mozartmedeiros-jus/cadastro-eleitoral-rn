@@ -7,11 +7,11 @@ import {
   Save, AlertTriangle, Plus
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
-import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch } from 'firebase/firestore';
 
 interface SecaoDetalhe {
   secao: string;
@@ -42,7 +42,6 @@ function padSecao(secao: string) {
 export default function AgregacoesClient({ initialData }: { initialData: LocationData[] }) {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const { user, canEdit } = useAuth();
@@ -50,12 +49,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   // Ciclos
   const [cicloAtivo, setCicloAtivo] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
   const [savingCiclo, setSavingCiclo] = useState(false);
-  const [loadingCiclo, setLoadingCiclo] = useState(false);
   const [clearingCiclo, setClearingCiclo] = useState(false);
-  const [showLoadWarning, setShowLoadWarning] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
   const [showClearWarning, setShowClearWarning] = useState(false);
-  // Ref para evitar o modal de carregamento quando a navegação vem de um save
-  const skipLoadWarningRef = useRef<string | null>(null);
   const [agregacoesData, setAgregacoesData] = useState<Record<string, AgregacaoFields>>({});
   // Drafts locais do campo TOTAL enquanto edita (valores não confirmados)
   const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
@@ -188,32 +183,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     setMounted(true);
   }, []);
 
-  // Reagir ao param ?ciclo= da URL (navegação via sidebar)
-  const urlCicloId = searchParams.get('ciclo');
-  useEffect(() => {
-    if (!urlCicloId) {
-      // URL sem ciclo — limpar ciclo ativo sem aviso
-      if (cicloAtivo) setCicloAtivo(null);
-      return;
-    }
-    const parts = urlCicloId.split('-');
-    const cap = Number(parts[0]);
-    const int = Number(parts[1]);
-    if (isNaN(cap) || isNaN(int)) return;
-
-    if (cicloAtivo?.id === urlCicloId) return; // já ativo, sem ação
-
-    // Navegação veio de um save — apenas ativar o ciclo sem aviso
-    if (skipLoadWarningRef.current === urlCicloId) {
-      skipLoadWarningRef.current = null;
-      setCicloAtivo({ id: urlCicloId, capitalLimit: cap, interiorLimit: int });
-      return;
-    }
-
-    // Ciclo diferente via sidebar — mostrar aviso de sobreposição
-    setShowLoadWarning({ id: urlCicloId, capitalLimit: cap, interiorLimit: int });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlCicloId]);
 
   // Salvar ciclo atual
   const saveCiclo = useCallback(async () => {
@@ -259,45 +228,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     }
   }, [capitalLimit, interiorLimit, agregacoesData, initialData, router]);
 
-  // Carregar ciclo no Firestore (chamado após confirmação)
-  const loadCiclo = useCallback(async (cicloId: string, cap: number, int: number) => {
-    setLoadingCiclo(true);
-    try {
-      const snap = await getDoc(doc(db, 'ciclos', cicloId));
-      if (!snap.exists()) return;
-      const cicloRows = (snap.data().rows ?? {}) as Record<string, { agregar?: boolean; total?: number }>;
-
-      const batch = writeBatch(db);
-
-      // Deletar linhas atuais de agregacoes que NÃO estão no ciclo
-      Object.keys(agregacoesData).forEach(rowId => {
-        if (!cicloRows[rowId]) {
-          batch.delete(doc(db, 'agregacoes', rowId));
-        }
-      });
-
-      // Escrever linhas do ciclo em agregacoes
-      Object.entries(cicloRows).forEach(([rowId, fields]) => {
-        batch.set(doc(db, 'agregacoes', rowId), {
-          ...(fields.agregar !== undefined && { agregar: fields.agregar }),
-          ...(fields.total !== undefined && { total: fields.total }),
-          updatedAt: serverTimestamp(),
-          updatedBy: auth.currentUser?.email ?? null,
-        });
-      });
-
-      await batch.commit();
-
-      setCapitalInput(String(cap)); setCapitalLimit(cap);
-      setInteriorInput(String(int)); setInteriorLimit(int);
-      setCicloAtivo({ id: cicloId, capitalLimit: cap, interiorLimit: int });
-      setShowLoadWarning(null);
-    } catch (err) {
-      console.error('Load ciclo failed:', err);
-    } finally {
-      setLoadingCiclo(false);
-    }
-  }, [agregacoesData, router]);
 
   // Apagar todos os dados de agregacoes para iniciar novo ciclo
   const novoCiclo = useCallback(async () => {
@@ -459,42 +389,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
   return (
     <div className="min-h-full bg-bg text-ink pb-14">
-
-      {/* ── Modal de aviso de sobreposição ──────────────────────── */}
-      {showLoadWarning && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-[8px] shadow-lg max-w-md w-full mx-4 p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
-              <div>
-                <h2 className="text-[15px] font-bold text-[var(--ink)] mb-1">
-                  Carregar Ciclo {showLoadWarning.id}
-                </h2>
-                <p className="text-[13px] text-[var(--ink-2)] leading-relaxed">
-                  Os dados atuais de <strong>AGREGAR</strong> e <strong>TOTAL</strong> serão
-                  substituídos pelos valores salvos neste ciclo. Linhas que não fazem parte
-                  do ciclo serão removidas. Esta ação não pode ser desfeita.
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowLoadWarning(null)}
-                className="h-9 px-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--surface-3)] transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => loadCiclo(showLoadWarning.id, showLoadWarning.capitalLimit, showLoadWarning.interiorLimit)}
-                disabled={loadingCiclo}
-                className="h-9 px-4 rounded-[6px] bg-warn border border-warn text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
-              >
-                {loadingCiclo ? 'Carregando…' : 'Confirmar carregamento'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal de novo ciclo ─────────────────────────────────── */}
       {showClearWarning && (
@@ -797,12 +691,12 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             {/* Legenda */}
             <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
               <div className="flex items-center gap-1.5">
-                <span className="w-[22px] h-[14px] rounded-[3px] bg-accent-soft border border-accent-soft-border" />
-                <span>dentro do limite</span>
-              </div>
-              <div className="flex items-center gap-1.5">
                 <span className="w-[22px] h-[14px] rounded-[3px] bg-danger-soft border border-danger-border" />
                 <span>≤ 50 eleitores</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-[22px] h-[14px] rounded-[3px] bg-accent-soft border border-accent-soft-border" />
+                <span>dentro do limite</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-[22px] h-[14px] rounded-[3px] bg-surface border border-border-strong" />

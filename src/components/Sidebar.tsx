@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BarChart2, Database, LayoutDashboard, Menu, X, History } from 'lucide-react';
+import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 interface NavItem {
@@ -16,8 +16,8 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false },
-  { name: 'Agregações',   href: '/agregacoes',           icon: Database,  sub: false, authRequired: false },
-  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: false },
+  { name: 'Agregações',   href: '/agregacoes',           icon: Map,       sub: false, authRequired: false },
+  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true  },
   { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true  },
 ];
 
