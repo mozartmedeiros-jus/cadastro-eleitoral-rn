@@ -728,14 +728,13 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                 </select>
                 <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
               </div>
-              {cicloAtivo && (
-                <button
-                  onClick={() => { setCicloAtivo(null); setCapitalInput(''); setInteriorInput(''); setCapitalLimit(0); setInteriorLimit(0); }}
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:text-danger hover:border-danger-border hover:bg-danger-soft transition-colors"
-                >
-                  <RotateCcw size={13} /> Limpar
-                </button>
-              )}
+              <button
+                onClick={() => { setCicloAtivo(null); setCapitalInput(''); setInteriorInput(''); setCapitalLimit(0); setInteriorLimit(0); }}
+                disabled={!cicloAtivo}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:text-danger hover:border-danger-border hover:bg-danger-soft disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <RotateCcw size={13} /> Limpar
+              </button>
               <span className="flex-1" />
               <button
                 onClick={saveCiclo}
