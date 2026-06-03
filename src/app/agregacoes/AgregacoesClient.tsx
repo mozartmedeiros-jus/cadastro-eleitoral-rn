@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
-import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc, Timestamp } from 'firebase/firestore';
 
 interface SecaoDetalhe {
   secao: string;
@@ -31,6 +31,13 @@ interface AgregacaoFields {
   total?: number;
 }
 
+interface CicloMeta {
+  id: string;
+  capitalLimit: number;
+  interiorLimit: number;
+  savedAt: Date | null;
+}
+
 function formatNumber(val: number) {
   return new Intl.NumberFormat('pt-BR').format(val || 0);
 }
@@ -48,6 +55,10 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
   // Ciclos
   const [cicloAtivo, setCicloAtivo] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
+  const [ciclosList, setCiclosList] = useState<CicloMeta[]>([]);
+  const [cicloSelectValue, setCicloSelectValue] = useState('');
+  const [showLoadWarning, setShowLoadWarning] = useState<{ id: string; capitalLimit: number; interiorLimit: number } | null>(null);
+  const [loadingCiclo, setLoadingCiclo] = useState(false);
   const [savingCiclo, setSavingCiclo] = useState(false);
   const [clearingCiclo, setClearingCiclo] = useState(false);
   const [showClearWarning, setShowClearWarning] = useState(false);
@@ -75,6 +86,19 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
       setAgregacoesData(data);
     });
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'ciclos'), snap => {
+      const list: CicloMeta[] = snap.docs.map(d => ({
+        id: d.id,
+        capitalLimit: d.data().capitalLimit ?? 200,
+        interiorLimit: d.data().interiorLimit ?? 160,
+        savedAt: d.data().savedAt instanceof Timestamp ? d.data().savedAt.toDate() : null,
+      })).sort((a, b) => a.id.localeCompare(b.id));
+      setCiclosList(list);
+    });
+    return () => unsub();
   }, []);
 
   const saveAgregacaoField = useCallback(async (
@@ -228,6 +252,35 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     }
   }, [capitalLimit, interiorLimit, agregacoesData, initialData, router]);
 
+  const loadCiclo = useCallback(async (cicloId: string, cap: number, int: number) => {
+    setLoadingCiclo(true);
+    try {
+      const snap = await getDoc(doc(db, 'ciclos', cicloId));
+      if (!snap.exists()) return;
+      const cicloRows = (snap.data().rows ?? {}) as Record<string, { agregar?: boolean; total?: number }>;
+      const batch = writeBatch(db);
+      Object.keys(agregacoesData).forEach(rowId => {
+        if (!cicloRows[rowId]) batch.delete(doc(db, 'agregacoes', rowId));
+      });
+      Object.entries(cicloRows).forEach(([rowId, fields]) => {
+        batch.set(doc(db, 'agregacoes', rowId), {
+          ...(fields.agregar !== undefined && { agregar: fields.agregar }),
+          ...(fields.total !== undefined && { total: fields.total }),
+          updatedAt: serverTimestamp(),
+          updatedBy: auth.currentUser?.email ?? null,
+        });
+      });
+      await batch.commit();
+      setCapitalInput(String(cap)); setCapitalLimit(cap);
+      setInteriorInput(String(int)); setInteriorLimit(int);
+      setCicloAtivo({ id: cicloId, capitalLimit: cap, interiorLimit: int });
+      setShowLoadWarning(null);
+    } catch (err) {
+      console.error('Load ciclo failed:', err);
+    } finally {
+      setLoadingCiclo(false);
+    }
+  }, [agregacoesData]);
 
   // Apagar todos os dados de agregacoes para iniciar novo ciclo
   const novoCiclo = useCallback(async () => {
@@ -389,6 +442,42 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
   return (
     <div className="min-h-full bg-bg text-ink pb-14">
+
+      {/* ── Modal de carregar ciclo ──────────────────────────────── */}
+      {showLoadWarning && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-[8px] shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
+              <div>
+                <h2 className="text-[15px] font-bold text-[var(--ink)] mb-1">
+                  Carregar Ciclo {showLoadWarning.id}
+                </h2>
+                <p className="text-[13px] text-[var(--ink-2)] leading-relaxed">
+                  Os dados atuais de <strong>AGREGAR</strong> e <strong>TOTAL</strong> serão
+                  substituídos pelos valores salvos neste ciclo. Linhas que não fazem parte
+                  do ciclo serão removidas. Esta ação não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowLoadWarning(null)}
+                className="h-9 px-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--surface-3)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => loadCiclo(showLoadWarning.id, showLoadWarning.capitalLimit, showLoadWarning.interiorLimit)}
+                disabled={loadingCiclo}
+                className="h-9 px-4 rounded-[6px] bg-warn border border-warn text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {loadingCiclo ? 'Carregando…' : 'Confirmar carregamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal de novo ciclo ─────────────────────────────────── */}
       {showClearWarning && (
@@ -615,6 +704,46 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             )}
           </div>
 
+          {/* Linha de ciclos */}
+          {canEdit && (
+            <div className="flex items-center gap-2 flex-wrap border-t border-border-faint pt-3.5">
+              <div className="relative">
+                <select
+                  value={cicloSelectValue}
+                  onChange={e => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    const c = ciclosList.find(x => x.id === id);
+                    if (!c) return;
+                    setCicloSelectValue('');
+                    setShowLoadWarning({ id: c.id, capitalLimit: c.capitalLimit, interiorLimit: c.interiorLimit });
+                  }}
+                  className="ds-select h-9 pl-3 pr-9 min-w-[160px] text-[13px]"
+                >
+                  <option value="">Carregar ciclo…</option>
+                  {ciclosList.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+              </div>
+              <span className="flex-1" />
+              <button
+                onClick={saveCiclo}
+                disabled={savingCiclo || !capitalInput.trim() || !interiorInput.trim()}
+                className="h-9 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
+              >
+                <Save size={14} />
+                {savingCiclo ? 'Salvando…' : capitalLimit > 0 || interiorLimit > 0 ? `Salvar ciclo ${capitalLimit}-${interiorLimit}` : 'Salvar ciclo'}
+              </button>
+              <button
+                onClick={() => setShowClearWarning(true)}
+                className="h-9 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink transition-colors inline-flex items-center gap-2"
+              >
+                <Plus size={14} />
+                Novo ciclo
+              </button>
+            </div>
+          )}
+
           {/* Parâmetros de cálculo */}
           <div className="flex items-center gap-3 flex-wrap border-t border-border-faint pt-3.5">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 whitespace-nowrap">
@@ -664,25 +793,6 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   >
                     Calcular
                   </button>
-                  {canEdit && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={saveCiclo}
-                        disabled={savingCiclo || !capitalInput.trim() || !interiorInput.trim()}
-                        className="h-10 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
-                      >
-                        <Save size={14} />
-                        {savingCiclo ? 'Salvando…' : `Salvar ciclo ${capitalLimit}-${interiorLimit}`}
-                      </button>
-                      <button
-                        onClick={() => setShowClearWarning(true)}
-                        className="h-10 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink transition-colors inline-flex items-center gap-2"
-                      >
-                        <Plus size={14} />
-                        Novo ciclo
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
           </div>
