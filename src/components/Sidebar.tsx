@@ -130,7 +130,7 @@ export default function Sidebar() {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowThemeMenu(false)} />
                   <div
-                    className="absolute bottom-full left-0 mb-1.5 w-[140px] rounded-[6px] bg-[var(--surface)] border border-[var(--border-strong)] p-1.5 z-50"
+                    className="absolute bottom-full right-0 mb-1.5 w-[140px] rounded-[6px] bg-[var(--surface)] border border-[var(--border-strong)] p-1.5 z-50"
                     style={{ boxShadow: 'var(--shadow-menu)' }}
                   >
                     {[
