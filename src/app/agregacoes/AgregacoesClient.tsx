@@ -120,11 +120,11 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   };
 
   // Filtros de Limite
-  const [capitalInput, setCapitalInput] = useState('200');
-  const [interiorInput, setInteriorInput] = useState('160');
-  const [capitalLimit, setCapitalLimit] = useState(200);
-  const [interiorLimit, setInteriorLimit] = useState(160);
-  const [showCalcParams, setShowCalcParams] = useState(false);
+  const [capitalInput, setCapitalInput] = useState('');
+  const [interiorInput, setInteriorInput] = useState('');
+  const [capitalLimit, setCapitalLimit] = useState(0);
+  const [interiorLimit, setInteriorLimit] = useState(0);
+  const [showCalcParams, setShowCalcParams] = useState(true);
 
   // Filtros adicionais
   const [zonaFilter, setZonaFilter] = useState('');
@@ -615,24 +615,23 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             )}
           </div>
 
-          {/* Parâmetros de cálculo + legenda */}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-t border-border-faint pt-3.5">
-            <div className="flex items-center gap-3 flex-wrap">
+          {/* Parâmetros de cálculo */}
+          <div className="flex items-center gap-3 flex-wrap border-t border-border-faint pt-3.5">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 whitespace-nowrap">
                 <SlidersHorizontal size={14} /> Parâmetros de cálculo
               </span>
               <div className="inline-flex p-[3px] gap-0.5 bg-surface-3 border border-border rounded-[6px]">
                 <button
-                  onClick={() => { setShowCalcParams(false); setCurrentPage(1); }}
-                  className={`px-3.5 py-1.5 rounded-[4px] text-[12.5px] font-semibold transition-colors ${!showCalcParams ? 'bg-surface text-accent' : 'text-ink-3 hover:text-ink'}`}
-                >
-                  Ocultar
-                </button>
-                <button
                   onClick={() => { setShowCalcParams(true); setCurrentPage(1); }}
                   className={`px-3.5 py-1.5 rounded-[4px] text-[12.5px] font-semibold transition-colors ${showCalcParams ? 'bg-surface text-accent' : 'text-ink-3 hover:text-ink'}`}
                 >
                   Aplicar (Capital / Interior)
+                </button>
+                <button
+                  onClick={() => { setShowCalcParams(false); setCurrentPage(1); }}
+                  className={`px-3.5 py-1.5 rounded-[4px] text-[12.5px] font-semibold transition-colors ${!showCalcParams ? 'bg-surface text-accent' : 'text-ink-3 hover:text-ink'}`}
+                >
+                  Ocultar
                 </button>
               </div>
 
@@ -686,9 +685,19 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   )}
                 </div>
               )}
-            </div>
+          </div>
+        </section>
 
-            {/* Legenda */}
+        {/* ── Cabeçalho da tabela + legenda ─────────────────────── */}
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">
+            Locais de votação
+          </h2>
+          <span className="text-[11.5px] text-ink-4 whitespace-nowrap">
+            {formatNumber(sortedData.length)} locais
+          </span>
+          <span className="flex-1 h-px bg-border" />
+          {(capitalLimit > 0 || interiorLimit > 0) && (
             <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
               <div className="flex items-center gap-1.5">
                 <span className="w-[22px] h-[14px] rounded-[3px] bg-danger-soft border border-danger-border" />
@@ -703,8 +712,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                 <span>acima do limite</span>
               </div>
             </div>
-          </div>
-        </section>
+          )}
+        </div>
 
         {/* ── Tabela ────────────────────────────────────────────── */}
         <section className="ds-card overflow-hidden">

@@ -231,8 +231,8 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             {ciclo ? ` · ciclo ${selectedId} aplicado` : ''}
           </span>
           <span className="flex-1 h-px bg-border" />
-          {/* Legenda — sempre visível */}
-          <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
+          {/* Legenda — só com ciclo selecionado */}
+          {ciclo && <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
             <div className="flex items-center gap-1.5">
               <span className="w-[22px] h-[14px] rounded-[3px] bg-danger-soft border border-danger-border" />
               <span>≤ 50 eleitores</span>
@@ -245,7 +245,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
               <span className="w-[22px] h-[14px] rounded-[3px] bg-surface border border-border-strong" />
               <span>acima do limite</span>
             </div>
-          </div>
+          </div>}
         </div>
 
         <section className="ds-card overflow-hidden">
