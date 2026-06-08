@@ -145,10 +145,10 @@ export default function CiclosClient() {
           <div className="flex items-center gap-2 text-[11px] text-[var(--ink-3)]">
             <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
             <span className="w-[3px] h-[3px] rounded-full bg-[var(--ink-4)]" />
-            <span className="text-[var(--accent-text)] font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
+            <span className="text-[var(--accent-ink)] font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
           </div>
           <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-[var(--ink)] flex items-center gap-2 leading-tight">
-            <History size={20} className="text-[var(--accent-text)] shrink-0" />
+            <History size={20} className="text-[var(--accent-ink)] shrink-0" />
             Ciclos Guardados
           </h1>
         </div>
@@ -173,7 +173,7 @@ export default function CiclosClient() {
           ) : ciclos.length === 0 ? (
             <div className="p-14 text-center text-[var(--ink-3)] text-[13.5px]">
               Nenhum ciclo salvo ainda. Vá para{' '}
-              <Link href="/agregacoes" className="text-[var(--accent-text)] underline underline-offset-2">
+              <Link href="/agregacoes" className="text-[var(--accent-ink)] underline underline-offset-2">
                 Agregações
               </Link>{' '}
               e clique em "Salvar ciclo".
@@ -198,7 +198,7 @@ export default function CiclosClient() {
                         <td className="px-4 py-3">
                           <button
                             onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                            className="flex items-center gap-1.5 font-bold text-[var(--ink)] font-mono text-[13.5px] hover:text-[var(--accent-text)] transition-colors"
+                            className="flex items-center gap-1.5 font-bold text-[var(--ink)] font-mono text-[13.5px] hover:text-[var(--accent-ink)] transition-colors"
                           >
                             <ChevronDown
                               size={14}
@@ -210,7 +210,7 @@ export default function CiclosClient() {
                         <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.capitalLimit}</td>
                         <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.interiorLimit}</td>
                         <td className="px-4 py-3 text-center text-[var(--ink)] num font-bold">{c.locais}</td>
-                        <td className="px-4 py-3 text-center text-[var(--accent-text)] num font-bold">{c.agregacoes}</td>
+                        <td className="px-4 py-3 text-center text-[var(--accent-ink)] num font-bold">{c.agregacoes}</td>
                         <td className="px-4 py-3 text-[13px] text-[var(--ink-3)] whitespace-nowrap">{formatDate(c.savedAt)}</td>
                         <td className="px-4 py-3 text-[12.5px] text-[var(--ink-3)] max-w-[180px] truncate">{c.savedBy ?? '—'}</td>
                         <td className="px-4 py-3">
@@ -218,7 +218,7 @@ export default function CiclosClient() {
                             {user && (
                               <Link
                                 href={`/agregacoes?ciclo=${c.id}`}
-                                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft-bg)] hover:text-[var(--accent-text)] hover:border-[var(--accent-soft-bd)] transition-colors"
+                                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-ink)] hover:border-[var(--accent-soft-border)] transition-colors"
                               >
                                 <RotateCcw size={12} />
                                 Recuperar
@@ -227,7 +227,7 @@ export default function CiclosClient() {
                             {canEdit && (
                               <button
                                 onClick={() => setConfirmDelete(c.id)}
-                                className="h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger-text)] hover:border-[var(--danger-bd)] transition-colors"
+                                className="h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] transition-colors"
                                 title={`Apagar ciclo ${c.id}`}
                               >
                                 <Trash2 size={13} />
@@ -263,7 +263,7 @@ export default function CiclosClient() {
                                         <td className="py-2 pr-4 text-[12.5px] text-[var(--ink)]">{r.local}</td>
                                         <td className="py-2 pr-4 text-center">
                                           {r.agregar
-                                            ? <Check size={14} className="text-[var(--accent-text)] inline" />
+                                            ? <Check size={14} className="text-[var(--accent-ink)] inline" />
                                             : <span className="text-[var(--ink-4)]">—</span>
                                           }
                                         </td>
