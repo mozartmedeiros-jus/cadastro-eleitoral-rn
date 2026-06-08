@@ -426,6 +426,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             {/* Exportar CSV */}
             <button
               onClick={exportCSV}
+              aria-label="Exportar CSV"
               className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
             >
               <Download size={14} /> <span className="hidden sm:inline">Exportar CSV</span>
@@ -516,6 +517,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" size={16} />
             <input
               type="text"
+              aria-label="Buscar local ou município"
               value={searchLocal}
               onChange={(e) => setSearchLocal(e.target.value)}
               placeholder="Buscar local ou município…"
@@ -527,6 +529,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             <div className="relative min-w-[150px] w-full sm:w-auto">
               <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
               <select
+                aria-label="Filtrar por zona"
                 value={selectedZona}
                 onChange={(e) => setSelectedZona(e.target.value)}
                 className="ds-select w-full pl-9 pr-9"
@@ -541,6 +544,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
             <div className="relative min-w-[180px] w-full sm:w-auto">
               <select
+                aria-label="Filtrar por município"
                 value={selectedMuni}
                 onChange={(e) => setSelectedMuni(e.target.value)}
                 className="ds-select w-full pl-3 pr-9"
@@ -651,6 +655,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                               min={0}
                               max={9999}
                               step={1}
+                              aria-label="Mesas (MRJ)"
                               value={mrjDrafts[firestoreId] ?? (localData[firestoreId]?.mesaMrj ?? '')}
                               onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
@@ -702,6 +707,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                               min={0}
                               max={9999}
                               step={1}
+                              aria-label="Ponto de apoio"
                               value={pontoDrafts[firestoreId] ?? (localData[firestoreId]?.pontoApoio ?? '')}
                               onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
@@ -828,6 +834,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                   <span className="text-[12.5px] text-ink-3">Por página:</span>
                   <div className="relative">
                     <select
+                      aria-label="Itens por página"
                       value={pageSize}
                       onChange={(e) => setPageSize(Number(e.target.value))}
                       className="h-8 pl-2.5 pr-7 appearance-none rounded-[4px] bg-surface border border-border-strong text-[12.5px] text-ink cursor-pointer outline-none focus:border-accent"

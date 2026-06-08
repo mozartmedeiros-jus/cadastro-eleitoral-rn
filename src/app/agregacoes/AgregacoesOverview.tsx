@@ -149,6 +149,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             )}
             <div className="relative">
               <select
+                aria-label="Filtrar por zona"
                 value={zonaFilter}
                 onChange={e => { setZonaFilter(e.target.value); setMunicipioFilter(''); setCurrentPage(1); }}
                 className="ds-select h-9 pl-3 pr-8 min-w-[120px] text-[13px]"
@@ -160,6 +161,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             </div>
             <div className="relative">
               <select
+                aria-label="Filtrar por município"
                 value={municipioFilter}
                 onChange={e => { setMunicipioFilter(e.target.value); setCurrentPage(1); }}
                 className="ds-select h-9 pl-3 pr-8 min-w-[170px] text-[13px]"
@@ -172,6 +174,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             <div className="w-px h-6 bg-border" />
             <div className="relative">
               <select
+                aria-label="Selecionar ciclo"
                 value={selectedId}
                 onChange={e => { setSelectedId(e.target.value); setZonaFilter(''); setMunicipioFilter(''); setCurrentPage(1); }}
                 disabled={loadingCiclos}

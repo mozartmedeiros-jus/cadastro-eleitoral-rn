@@ -228,6 +228,7 @@ export default function CiclosClient() {
                               <button
                                 onClick={() => setConfirmDelete(c.id)}
                                 className="h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] transition-colors"
+                                aria-label={`Apagar ciclo ${c.id}`}
                                 title={`Apagar ciclo ${c.id}`}
                               >
                                 <Trash2 size={13} />

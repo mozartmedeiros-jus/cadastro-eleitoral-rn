@@ -538,6 +538,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   router.replace('/agregacoes');
                 }}
                 className="h-7 w-7 grid place-items-center rounded-[4px] text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] transition-colors"
+                aria-label="Fechar aviso de ciclo ativo"
                 title="Fechar"
               >
                 <X size={14} />
@@ -580,6 +581,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             <div className="relative min-w-[150px]">
               <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
               <select
+                aria-label="Filtrar por zona"
                 value={zonaFilter}
                 onChange={e => {
                   setZonaFilter(e.target.value);
@@ -597,6 +599,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             {/* Município */}
             <div className="relative min-w-[180px]">
               <select
+                aria-label="Filtrar por município"
                 value={municipioFilter}
                 onChange={e => {
                   setMunicipioFilter(e.target.value);
@@ -613,6 +616,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             {/* Local */}
             <div className="relative flex-1 min-w-[200px]">
               <select
+                aria-label="Filtrar por local"
                 value={localFilter}
                 onChange={e => { setLocalFilter(e.target.value); setCurrentPage(1); }}
                 className="ds-select w-full pl-3 pr-9"
@@ -657,6 +661,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
               </span>
               <div className="relative">
                 <select
+                  aria-label="Carregar ciclo"
                   value={cicloSelectValue}
                   onChange={e => {
                     const id = e.target.value;
@@ -725,6 +730,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     <label className="text-[11px] font-bold tracking-[0.04em] text-ink-3">CAPITAL</label>
                     <input
                       type="number"
+                      aria-label="Limite Capital"
                       value={capitalInput}
                       onChange={(e) => { if (!cicloAtivo) setCapitalInput(e.target.value); }}
                       readOnly={!!cicloAtivo}
@@ -735,6 +741,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     <label className="text-[11px] font-bold tracking-[0.04em] text-ink-3">INTERIOR</label>
                     <input
                       type="number"
+                      aria-label="Limite Interior"
                       value={interiorInput}
                       onChange={(e) => { if (!cicloAtivo) setInteriorInput(e.target.value); }}
                       readOnly={!!cicloAtivo}
@@ -834,6 +841,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                         {canEdit ? (
                           <input
                             type="checkbox"
+                            aria-label="Agregar local"
                             checked={agregacoesData[rowId]?.agregar ?? false}
                             onChange={() => {
                               const newVal = !(agregacoesData[rowId]?.agregar ?? false);
@@ -863,6 +871,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                           <input
                             ref={(el) => { totalInputRefs.current[rowId] = el; }}
                             type="number"
+                            aria-label="Total de eleitores"
                             min={0}
                             max={9999}
                             step={1}
