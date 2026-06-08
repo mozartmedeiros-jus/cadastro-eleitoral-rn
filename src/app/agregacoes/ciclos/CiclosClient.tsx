@@ -108,29 +108,29 @@ export default function CiclosClient() {
   }, [expandedId]);
 
   return (
-    <div className="min-h-full bg-[var(--bg)] text-[var(--ink)] pb-14">
+    <div className="min-h-full bg-bg text-ink pb-14">
 
       {/* Modal de confirmação de exclusão */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-[8px] shadow-lg max-w-sm w-full mx-4 p-6">
-            <h2 className="text-[15px] font-bold text-[var(--ink)] mb-2">
+          <div className="bg-surface border border-border-strong rounded-[8px] shadow-lg max-w-sm w-full mx-4 p-6">
+            <h2 className="text-[15px] font-bold text-ink mb-2">
               Apagar Ciclo {confirmDelete}
             </h2>
-            <p className="text-[13px] text-[var(--ink-2)] leading-relaxed mb-5">
+            <p className="text-[13px] text-ink-2 leading-relaxed mb-5">
               O ciclo será removido permanentemente. Esta ação não pode ser desfeita.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="h-9 px-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--surface-3)] transition-colors"
+                className="h-9 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDelete(confirmDelete)}
                 disabled={deleting}
-                className="h-9 px-4 rounded-[6px] bg-[var(--danger)] border border-[var(--danger)] text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
+                className="h-9 px-4 rounded-[6px] bg-danger border border-danger text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
               >
                 {deleting ? 'Apagando…' : 'Confirmar exclusão'}
               </button>
@@ -140,15 +140,15 @@ export default function CiclosClient() {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-[var(--surface)] border-b border-[var(--border)]">
+      <header className="sticky top-0 z-30 bg-surface border-b border-border">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center gap-2 text-[11px] text-[var(--ink-3)]">
+          <div className="flex items-center gap-2 text-[11px] text-ink-3">
             <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
-            <span className="w-[3px] h-[3px] rounded-full bg-[var(--ink-4)]" />
-            <span className="text-[var(--accent-ink)] font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
+            <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+            <span className="text-accent font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
           </div>
-          <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-[var(--ink)] flex items-center gap-2 leading-tight">
-            <History size={20} className="text-[var(--accent-ink)] shrink-0" />
+          <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
+            <History size={20} className="text-accent shrink-0" />
             Ciclos Guardados
           </h1>
         </div>
@@ -156,35 +156,35 @@ export default function CiclosClient() {
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="flex items-baseline gap-3 mt-1 mb-3">
-          <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-[var(--ink-2)] whitespace-nowrap">
+          <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">
             Ciclos salvos
           </h2>
-          <span className="text-[11.5px] text-[var(--ink-4)] whitespace-nowrap">
+          <span className="text-[11.5px] text-ink-4 whitespace-nowrap">
             clique no código para ver o conteúdo · clique em Recuperar para restaurar
           </span>
-          <span className="flex-1 h-px bg-[var(--border)]" />
+          <span className="flex-1 h-px bg-border" />
         </div>
 
         <section className="ds-card overflow-hidden">
           {loading ? (
-            <div className="p-14 text-center text-[var(--ink-3)] text-[13.5px]">
+            <div className="p-14 text-center text-ink-3 text-[13.5px]">
               Carregando ciclos…
             </div>
           ) : ciclos.length === 0 ? (
-            <div className="p-14 text-center text-[var(--ink-3)] text-[13.5px]">
+            <div className="p-14 text-center text-ink-3 text-[13.5px]">
               Nenhum ciclo salvo ainda. Vá para{' '}
-              <Link href="/agregacoes" className="text-[var(--accent-ink)] underline underline-offset-2">
+              <Link href="/agregacoes" className="text-accent underline underline-offset-2">
                 Agregações
               </Link>{' '}
-              e clique em "Salvar ciclo".
+              e clique em “Salvar ciclo”.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className="bg-[var(--surface-2)] border-b border-[var(--border-strong)]">
+                  <tr className="bg-surface-2 border-b border-border-strong">
                     {['Ciclo', 'Capital', 'Interior', 'Locais', 'Agregações', 'Salvo em', 'Salvo por', ''].map((col) => (
-                      <th key={col} className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.07em] text-[var(--ink-3)] whitespace-nowrap">
+                      <th key={col} className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
                         {col}
                       </th>
                     ))}
@@ -193,32 +193,32 @@ export default function CiclosClient() {
                 <tbody>
                   {ciclos.map((c) => (
                     <>
-                      <tr key={c.id} className="border-b border-[var(--border-faint)] hover:bg-[var(--surface-2)] transition-colors">
+                      <tr key={c.id} className="border-b border-border-faint hover:bg-surface-2 transition-colors">
                         {/* Ciclo ID — clicável para expandir */}
                         <td className="px-4 py-3">
                           <button
                             onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                            className="flex items-center gap-1.5 font-bold text-[var(--ink)] font-mono text-[13.5px] hover:text-[var(--accent-ink)] transition-colors"
+                            className="flex items-center gap-1.5 font-bold text-ink font-mono text-[13.5px] hover:text-accent transition-colors"
                           >
                             <ChevronDown
                               size={14}
-                              className={`text-[var(--ink-4)] transition-transform duration-150 ${expandedId === c.id ? 'rotate-180' : ''}`}
+                              className={`text-ink-4 transition-transform duration-150 ${expandedId === c.id ? 'rotate-180' : ''}`}
                             />
                             {c.id}
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.capitalLimit}</td>
-                        <td className="px-4 py-3 text-center text-[var(--ink-2)] num font-semibold">{c.interiorLimit}</td>
-                        <td className="px-4 py-3 text-center text-[var(--ink)] num font-bold">{c.locais}</td>
-                        <td className="px-4 py-3 text-center text-[var(--accent-ink)] num font-bold">{c.agregacoes}</td>
-                        <td className="px-4 py-3 text-[13px] text-[var(--ink-3)] whitespace-nowrap">{formatDate(c.savedAt)}</td>
-                        <td className="px-4 py-3 text-[12.5px] text-[var(--ink-3)] max-w-[180px] truncate">{c.savedBy ?? '—'}</td>
+                        <td className="px-4 py-3 text-center text-ink-2 num font-semibold">{c.capitalLimit}</td>
+                        <td className="px-4 py-3 text-center text-ink-2 num font-semibold">{c.interiorLimit}</td>
+                        <td className="px-4 py-3 text-center text-ink num font-bold">{c.locais}</td>
+                        <td className="px-4 py-3 text-center text-accent num font-bold">{c.agregacoes}</td>
+                        <td className="px-4 py-3 text-[13px] text-ink-3 whitespace-nowrap">{formatDate(c.savedAt)}</td>
+                        <td className="px-4 py-3 text-[12.5px] text-ink-3 max-w-[180px] truncate">{c.savedBy ?? '—'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
                             {user && (
                               <Link
                                 href={`/agregacoes?ciclo=${c.id}`}
-                                className="ds-tap inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-ink)] hover:border-[var(--accent-soft-border)] transition-colors"
+                                className="ds-tap inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-surface border border-border-strong text-[12.5px] font-semibold text-ink-2 hover:bg-accent-soft hover:text-accent-ink hover:border-accent-soft-border transition-colors"
                               >
                                 <RotateCcw size={12} />
                                 Recuperar
@@ -227,7 +227,7 @@ export default function CiclosClient() {
                             {canEdit && (
                               <button
                                 onClick={() => setConfirmDelete(c.id)}
-                                className="ds-tap-icon h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] transition-colors"
+                                className="ds-tap-icon h-8 w-8 grid place-items-center rounded-[4px] border border-border-strong bg-surface text-ink-3 hover:bg-danger-soft hover:text-danger hover:border-danger-border transition-colors"
                                 aria-label={`Apagar ciclo ${c.id}`}
                                 title={`Apagar ciclo ${c.id}`}
                               >
@@ -241,16 +241,16 @@ export default function CiclosClient() {
                       {/* Linha expandida com conteúdo do ciclo */}
                       {expandedId === c.id && (
                         <tr key={`${c.id}-expanded`}>
-                          <td colSpan={8} className="px-0 py-0 bg-[var(--surface-2)] border-b border-[var(--border)]">
+                          <td colSpan={8} className="px-0 py-0 bg-surface-2 border-b border-border">
                             <div className="px-6 py-4">
                               {c.rows.length === 0 ? (
-                                <p className="text-[12.5px] text-[var(--ink-4)] italic">Nenhum local salvo neste ciclo.</p>
+                                <p className="text-[12.5px] text-ink-4 italic">Nenhum local salvo neste ciclo.</p>
                               ) : (
                                 <table className="w-full text-left border-collapse">
                                   <thead>
-                                    <tr className="border-b border-[var(--border-strong)]">
+                                    <tr className="border-b border-border-strong">
                                       {['Zona', 'Município', 'Local de Votação', 'Agregar', 'Total'].map(col => (
-                                        <th key={col} className="pb-2 pr-4 text-[10px] font-bold uppercase tracking-[0.07em] text-[var(--ink-3)] whitespace-nowrap">
+                                        <th key={col} className="pb-2 pr-4 text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
                                           {col}
                                         </th>
                                       ))}
@@ -258,18 +258,18 @@ export default function CiclosClient() {
                                   </thead>
                                   <tbody>
                                     {c.rows.map(r => (
-                                      <tr key={r.rowId} className="border-b border-[var(--border-faint)] last:border-0">
-                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-[var(--ink-2)] num">{r.zona}</td>
-                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-[var(--ink)] whitespace-nowrap">{r.municipio}</td>
-                                        <td className="py-2 pr-4 text-[12.5px] text-[var(--ink)]">{r.local}</td>
+                                      <tr key={r.rowId} className="border-b border-border-faint last:border-0">
+                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-ink-2 num">{r.zona}</td>
+                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-ink whitespace-nowrap">{r.municipio}</td>
+                                        <td className="py-2 pr-4 text-[12.5px] text-ink">{r.local}</td>
                                         <td className="py-2 pr-4 text-center">
                                           {r.agregar
-                                            ? <Check size={14} className="text-[var(--accent-ink)] inline" />
-                                            : <span className="text-[var(--ink-4)]">—</span>
+                                            ? <Check size={14} className="text-accent inline" />
+                                            : <span className="text-ink-4">—</span>
                                           }
                                         </td>
-                                        <td className="py-2 text-[12.5px] font-semibold text-[var(--ink)] num">
-                                          {r.total !== undefined ? r.total : <span className="text-[var(--ink-4)]">—</span>}
+                                        <td className="py-2 text-[12.5px] font-semibold text-ink num">
+                                          {r.total !== undefined ? r.total : <span className="text-ink-4">—</span>}
                                         </td>
                                       </tr>
                                     ))}

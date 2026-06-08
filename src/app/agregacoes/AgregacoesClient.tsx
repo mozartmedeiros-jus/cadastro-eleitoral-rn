@@ -727,8 +727,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
               {showCalcParams && (
                 <div className="flex flex-row items-center gap-3">
                   <div className="inline-flex items-center gap-2.5 h-10 px-3 bg-surface border border-border-strong rounded-[6px]">
-                    <label className="text-[11px] font-bold tracking-[0.04em] text-ink-3">CAPITAL</label>
+                    <label htmlFor="param-capital" className="text-[11px] font-bold tracking-[0.04em] text-ink-3">CAPITAL</label>
                     <input
+                      id="param-capital"
                       type="number"
                       aria-label="Limite Capital"
                       value={capitalInput}
@@ -738,8 +739,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     />
                   </div>
                   <div className="inline-flex items-center gap-2.5 h-10 px-3 bg-surface border border-border-strong rounded-[6px]">
-                    <label className="text-[11px] font-bold tracking-[0.04em] text-ink-3">INTERIOR</label>
+                    <label htmlFor="param-interior" className="text-[11px] font-bold tracking-[0.04em] text-ink-3">INTERIOR</label>
                     <input
+                      id="param-interior"
                       type="number"
                       aria-label="Limite Interior"
                       value={interiorInput}
