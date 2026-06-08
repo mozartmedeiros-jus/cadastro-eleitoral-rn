@@ -59,7 +59,7 @@ export default function Sidebar() {
       >
         {/* Brand */}
         <div className="h-16 flex items-center gap-[11px] px-5 border-b border-[var(--border)] shrink-0">
-          <div className="w-[34px] h-[34px] rounded-[var(--r-md)] grid place-items-center shrink-0 bg-[var(--accent-soft-bg)] text-[var(--accent-text)] border border-[var(--accent-soft-bd)]">
+          <div className="w-[34px] h-[34px] rounded-[var(--radius-ds-md)] grid place-items-center shrink-0 bg-[var(--accent-soft)] text-[var(--accent-ink)] border border-[var(--accent-soft-border)]">
             <LayoutDashboard size={16} />
           </div>
           <div>
@@ -90,21 +90,21 @@ export default function Sidebar() {
                 className={`
                   relative flex items-center gap-[11px]
                   ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
-                  rounded-[var(--r-md)] mb-[3px]
+                  rounded-[var(--radius-ds-md)] mb-[3px]
                   font-medium border transition-colors duration-[120ms]
                   ${active
-                    ? 'bg-[var(--accent-soft-bg)] text-[var(--accent-text)] border-[var(--accent-soft-bd)] font-semibold'
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-soft-border)] font-semibold'
                     : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
                   }
                 `}
               >
                 <Icon
                   size={item.sub ? 15 : 18}
-                  className={active ? 'text-[var(--accent-text)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
+                  className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
                 />
                 <span>{item.name}</span>
                 {active && (
-                  <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent-fill)] rounded-r-[3px]" />
+                  <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent)] rounded-r-[3px]" />
                 )}
               </Link>
             );
@@ -121,7 +121,7 @@ export default function Sidebar() {
             <div className="relative shrink-0">
               <button
                 onClick={() => setShowThemeMenu(v => !v)}
-                className="grid place-items-center w-[34px] h-[34px] rounded-[var(--r-md)] bg-[var(--surface-3)] border border-[var(--border-strong)] text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] transition-colors"
+                className="grid place-items-center w-[34px] h-[34px] rounded-[var(--radius-ds-md)] bg-[var(--surface-3)] border border-[var(--border-strong)] text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] transition-colors"
                 aria-label="Mudar tema"
               >
                 <ThemeIcon size={15} />
@@ -165,7 +165,7 @@ export default function Sidebar() {
       <div className="lg:hidden fixed top-4 left-4 z-[70]">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="w-[38px] h-[38px] grid place-items-center rounded-[var(--r-md)] bg-[var(--surface)] border border-[var(--border-strong)] text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--ink)]"
+          className="w-[38px] h-[38px] grid place-items-center rounded-[var(--radius-ds-md)] bg-[var(--surface)] border border-[var(--border-strong)] text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--ink)]"
           aria-label="Menu"
         >
           {open ? <X size={18} /> : <Menu size={18} />}
