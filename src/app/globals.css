@@ -150,6 +150,23 @@ body { transition: background-color .18s ease, color .18s ease; }
 /* Linha-base de hover de tabela */
 .row-hover:hover td { background: var(--surface-2); }
 
+/* ── Alvos de toque ───────────────────────────────────────────────
+   Em dispositivos de toque (pointer grosso), garante área de toque
+   confortável (~44px) em controles interativos. No desktop/mouse
+   (pointer fino) a densidade original é preservada — nada muda. */
+@media (pointer: coarse) {
+  button,
+  select,
+  [role="button"],
+  a.ds-tap {
+    min-height: 44px;
+  }
+  /* Botões só-ícone quadrados: também alargar para área de toque cheia */
+  button.ds-tap-icon { min-width: 44px; }
+  /* Editores numéricos inline das tabelas */
+  input.ds-num { min-height: 40px; }
+}
+
 /* Editor numérico inline: esconde os spinners */
 input.ds-num::-webkit-outer-spin-button,
 input.ds-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }

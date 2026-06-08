@@ -218,7 +218,7 @@ export default function CiclosClient() {
                             {user && (
                               <Link
                                 href={`/agregacoes?ciclo=${c.id}`}
-                                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-ink)] hover:border-[var(--accent-soft-border)] transition-colors"
+                                className="ds-tap inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[var(--surface)] border border-[var(--border-strong)] text-[12.5px] font-semibold text-[var(--ink-2)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-ink)] hover:border-[var(--accent-soft-border)] transition-colors"
                               >
                                 <RotateCcw size={12} />
                                 Recuperar
@@ -227,7 +227,7 @@ export default function CiclosClient() {
                             {canEdit && (
                               <button
                                 onClick={() => setConfirmDelete(c.id)}
-                                className="h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] transition-colors"
+                                className="ds-tap-icon h-8 w-8 grid place-items-center rounded-[4px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-3)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] transition-colors"
                                 aria-label={`Apagar ciclo ${c.id}`}
                                 title={`Apagar ciclo ${c.id}`}
                               >

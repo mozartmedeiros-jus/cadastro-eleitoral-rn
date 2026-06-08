@@ -537,7 +537,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   setCicloAtivo(null);
                   router.replace('/agregacoes');
                 }}
-                className="h-7 w-7 grid place-items-center rounded-[4px] text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] transition-colors"
+                className="ds-tap-icon h-7 w-7 grid place-items-center rounded-[4px] text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)] transition-colors"
                 aria-label="Fechar aviso de ciclo ativo"
                 title="Fechar"
               >
