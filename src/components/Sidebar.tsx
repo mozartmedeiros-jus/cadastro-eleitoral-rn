@@ -64,7 +64,7 @@ export default function Sidebar() {
           </div>
           <div>
             <div className="font-bold text-sm tracking-tight text-[var(--ink)]">TRE-RN</div>
-            <div className="text-[11px] text-[var(--ink-3)] mt-px">Cadastro Eleitoral</div>
+            <div className="text-[11px] text-[var(--ink-3)] mt-px">SPLE/COELE/STIE</div>
           </div>
         </div>
 
