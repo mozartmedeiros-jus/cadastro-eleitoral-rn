@@ -3,16 +3,14 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Download,
-  MapPin, Sun, Moon, Monitor, Eye, EyeOff, ArrowUpDown,
+  MapPin, Eye, EyeOff, ArrowUpDown,
   X, BarChart3
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import {
   collection, doc, onSnapshot, setDoc, serverTimestamp
 } from 'firebase/firestore';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
-import AuthButton from '@/components/AuthButton';
 
 interface SecaoDetalhe {
   secao: string;
@@ -81,9 +79,6 @@ function SectionHead({ title, hint }: { title: string; hint?: string }) {
 }
 
 export default function CadastroClient({ initialData }: { initialData: LocationData[] }) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
 
   // Filter States
   const [searchLocal, setSearchLocal] = useState('');
@@ -112,9 +107,6 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   const [mrjDrafts, setMrjDrafts] = useState<Record<string, string>>({});
   const [pontoDrafts, setPontoDrafts] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Subscribe to per-location editable data (all users, public read)
   useEffect(() => {
@@ -377,12 +369,6 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     document.body.removeChild(link);
   };
 
-  const getThemeIcon = () => {
-    if (!mounted) return <Moon size={16} />;
-    if (theme === 'light') return <Sun size={16} />;
-    if (theme === 'dark') return <Moon size={16} />;
-    return <Monitor size={16} />;
-  };
 
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
 
@@ -454,49 +440,6 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             >
               <Download size={14} /> <span className="hidden sm:inline">Exportar CSV</span>
             </button>
-
-            <div className="w-px h-[26px] bg-border" />
-
-            {/* Tema */}
-            <div className="relative">
-              <button
-                onClick={() => setShowThemeMenu(!showThemeMenu)}
-                className="grid place-items-center w-[38px] h-[38px] rounded-[6px] bg-surface border border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors"
-                aria-label="Mudar tema"
-              >
-                {getThemeIcon()}
-              </button>
-              {showThemeMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowThemeMenu(false)} />
-                  <div
-                    className="absolute right-0 mt-1.5 w-[152px] rounded-[6px] bg-surface border border-border-strong p-1.5 z-50"
-                    style={{ boxShadow: 'var(--shadow-menu)' }}
-                  >
-                    {[
-                      { id: 'light', label: 'Claro', icon: Sun },
-                      { id: 'dark', label: 'Escuro', icon: Moon },
-                      { id: 'system', label: 'Sistema', icon: Monitor },
-                    ].map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => { setTheme(t.id); setShowThemeMenu(false); }}
-                        className={
-                          'w-full flex items-center gap-2.5 rounded-[4px] px-2.5 py-2 text-[13px] font-medium text-left transition-colors ' +
-                          (theme === t.id ? 'bg-accent-soft text-accent font-semibold' : 'text-ink-2 hover:text-ink hover:bg-surface-3')
-                        }
-                      >
-                        <t.icon size={14} />
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Autenticação */}
-            <AuthButton />
           </div>
         </div>
       </header>
@@ -622,8 +565,12 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                   <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
                     <span className="flex flex-col leading-[1.15] items-center"><span>Qtde</span><span>Local</span></span>
                   </th>
-                  <SortHead field="total_secoes" center stacked><span>Total</span><span>Seções</span></SortHead>
-                  <SortHead field="total_secoes" center stacked><span>Mesários</span><span>(MRV)</span></SortHead>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Total</span><span>Seções</span></span>
+                  </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Mesários</span><span>(MRV)</span></span>
+                  </th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
                     <span className="flex flex-col leading-[1.15] items-center"><span>ADM</span><span>Prédio</span></span>
                   </th>
