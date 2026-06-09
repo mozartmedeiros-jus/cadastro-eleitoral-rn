@@ -11,6 +11,10 @@ import {
 } from 'firebase/firestore';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
+import meta from '../../data/meta.json';
+
+// Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
+const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
 
 interface SecaoDetalhe {
   secao: string;
@@ -449,6 +453,12 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
               <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
               <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
               <span className="text-accent font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
+              {DATA_REFERENCIA && (
+                <>
+                  <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+                  <span className="whitespace-nowrap">Dados de {DATA_REFERENCIA}</span>
+                </>
+              )}
             </div>
             <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
               <BarChart3 size={20} className="text-accent shrink-0" />

@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db, makeRowId } from '@/lib/firebase';
 import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import meta from '../../../data/meta.json';
+
+// Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
+const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
 
 interface SecaoDetalhe { secao: string; aptos: number; situacao?: string; }
 interface LocationData {
@@ -134,6 +138,12 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
               <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
               <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
               <span className="text-accent font-semibold whitespace-nowrap">Cadastro Eleitoral</span>
+              {DATA_REFERENCIA && (
+                <>
+                  <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+                  <span className="whitespace-nowrap">Dados de {DATA_REFERENCIA}</span>
+                </>
+              )}
             </div>
             <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
               <BarChart2 size={20} className="text-accent shrink-0" /> Análise de Agregações Eleitorais
