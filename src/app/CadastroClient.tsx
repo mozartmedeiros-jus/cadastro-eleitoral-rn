@@ -474,15 +474,31 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
           ))}
         </section>
 
-        {/* ── Valores calculados (8 secundários) ────────────────── */}
+        {/* ── Valores calculados (9 secundários) ────────────────── */}
         <SectionHead title="Valores calculados" hint="derivados de regras de dimensionamento" />
         <section className="ds-card overflow-hidden mb-7">
+          {/* Linha 1 — 4 valores derivados de seções/locais */}
           <div className="grid grid-cols-2 md:grid-cols-4">
-            {calcKpis.map((k, i) => (
+            {calcKpis.slice(0, 4).map((k, i) => (
               <div
                 key={k.label}
                 className={`p-4 border-border-faint
-                  ${i % 4 !== 3 ? 'border-r' : ''} ${i >= 4 ? 'border-t' : ''}
+                  ${i % 4 !== 3 ? 'border-r' : ''}
+                  max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3] min-h-[26px]">{k.label}</div>
+                <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">{k.value}</div>
+                <div className="mt-1 text-[10px] text-ink-4">{k.sub}</div>
+              </div>
+            ))}
+          </div>
+          {/* Linha 2 — 5 valores informados por admin (e derivados) */}
+          <div className="grid grid-cols-2 md:grid-cols-5 border-t border-border-faint">
+            {calcKpis.slice(4).map((k, i) => (
+              <div
+                key={k.label}
+                className={`p-4 border-border-faint
+                  ${i % 5 !== 4 ? 'border-r' : ''}
                   max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}
               >
                 <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3] min-h-[26px]">{k.label}</div>
