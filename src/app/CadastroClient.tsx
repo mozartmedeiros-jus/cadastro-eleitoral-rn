@@ -14,17 +14,33 @@ import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
 
+interface SecaoDetalhe {
+  secao: string;
+  aptos: number;
+  situacao?: string;
+}
+
 interface LocationData {
   zona: number | string;
   municipio: string;
   local: string;
   total_secoes: number;
   secoes: string[];
+  secoes_detalhes?: SecaoDetalhe[];
+  tem_secao_aguardando?: boolean;
   qtd_aptos: number;
   qde_analfabetos: number;
   qde_idosos: number;
   qde_le_escreve: number;
   qde_eleit_c_defic: number;
+}
+
+/* Marcador de seção/local com cadastro aguardando processamento no TSE. */
+const AGUARDANDO_HINT = 'Cadastro aguardando processamento no TSE';
+function AguardandoMark() {
+  return (
+    <span className="text-warn font-bold" title={AGUARDANDO_HINT} aria-label={AGUARDANDO_HINT}>*</span>
+  );
 }
 
 function formatNumber(val: number) {
@@ -73,6 +89,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   const [searchLocal, setSearchLocal] = useState('');
   const [selectedZona, setSelectedZona] = useState<string>('');
   const [selectedMuni, setSelectedMuni] = useState<string>('');
+  const [selectedSituacao, setSelectedSituacao] = useState<string>('');
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,9 +215,14 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       const matchMuni = selectedMuni === '' ||
         item.municipio === selectedMuni;
 
-      return matchLocal && matchZona && matchMuni;
+      const matchSituacao = selectedSituacao === '' ||
+        (selectedSituacao === 'aguardando'
+          ? !!item.tem_secao_aguardando
+          : !item.tem_secao_aguardando);
+
+      return matchLocal && matchZona && matchMuni && matchSituacao;
     });
-  }, [initialData, searchLocal, selectedZona, selectedMuni]);
+  }, [initialData, searchLocal, selectedZona, selectedMuni, selectedSituacao]);
 
   // Sorting Logic
   const sortedData = useMemo(() => {
@@ -288,7 +310,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   // Reset page when filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchLocal, selectedZona, selectedMuni, pageSize]);
+  }, [searchLocal, selectedZona, selectedMuni, selectedSituacao, pageSize]);
 
   const handleSort = (field: keyof LocationData) => {
     if (sortField === field) {
@@ -310,6 +332,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     setSearchLocal('');
     setSelectedZona('');
     setSelectedMuni('');
+    setSelectedSituacao('');
   };
 
   const exportCSV = () => {
@@ -403,7 +426,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     );
   };
 
-  const hasFilter = searchLocal || selectedZona || selectedMuni;
+  const hasFilter = searchLocal || selectedZona || selectedMuni || selectedSituacao;
 
   return (
     <div className="min-h-full bg-bg text-ink pb-14">
@@ -557,6 +580,20 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
               <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
             </div>
 
+            <div className="relative min-w-[180px] w-full sm:w-auto">
+              <select
+                aria-label="Filtrar por situação da seção"
+                value={selectedSituacao}
+                onChange={(e) => setSelectedSituacao(e.target.value)}
+                className="ds-select w-full pl-3 pr-9"
+              >
+                <option value="">Todas as situações</option>
+                <option value="aguardando">Com seção aguardando processamento</option>
+                <option value="ativo">Todas as seções ativas</option>
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+            </div>
+
             {hasFilter && (
               <button
                 onClick={handleClearFilters}
@@ -567,6 +604,11 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             )}
           </div>
         </section>
+
+        {/* ── Legenda do marcador ───────────────────────────────── */}
+        <p className="text-[11.5px] text-ink-3 mb-2 px-0.5">
+          <span className="text-warn font-bold">*</span> {AGUARDANDO_HINT} — a seção/local segue ativa e conta no eleitorado.
+        </p>
 
         {/* ── Tabela ────────────────────────────────────────────── */}
         <section className="ds-card overflow-hidden">
@@ -631,7 +673,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                             {isExpanded
                               ? <EyeOff size={15} className="text-accent shrink-0 mt-0.5" />
                               : <Eye size={15} className="text-ink-4 group-hover:text-accent shrink-0 mt-0.5 transition-colors" />}
-                            <span className="whitespace-normal break-words leading-snug font-medium" title={row.local}>{row.local}</span>
+                            <span className="whitespace-normal break-words leading-snug font-medium" title={row.local}>{row.local}{row.tem_secao_aguardando && <AguardandoMark />}</span>
                           </div>
                         </td>
                         {/* Local (Count) */}
@@ -791,15 +833,23 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                                   Seções vinculadas ({row.total_secoes})
                                 </h4>
                                 <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-2 scroll-y">
-                                  {row.secoes.map(sec => (
-                                    <span
-                                      key={sec}
-                                      className="font-mono text-[11.5px] font-semibold text-accent bg-accent-soft border border-accent-soft-border rounded-[4px] px-2 py-0.5 num"
-                                    >
-                                      {sec}
-                                    </span>
-                                  ))}
+                                  {row.secoes.map(sec => {
+                                    const aguardando = (row.secoes_detalhes ?? []).some(s => s.secao === sec && s.situacao);
+                                    return (
+                                      <span
+                                        key={sec}
+                                        className={`font-mono text-[11.5px] font-semibold rounded-[4px] px-2 py-0.5 num border ${aguardando ? 'text-warn bg-warn-soft border-warn-border' : 'text-accent bg-accent-soft border-accent-soft-border'}`}
+                                      >
+                                        {sec}{aguardando && <AguardandoMark />}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
+                                {row.tem_secao_aguardando && (
+                                  <p className="text-[10.5px] text-ink-4 leading-snug pt-1">
+                                    <span className="text-warn font-bold">*</span> {AGUARDANDO_HINT}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </td>

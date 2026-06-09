@@ -14,6 +14,7 @@ import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDo
 interface SecaoDetalhe {
   secao: string;
   aptos: number;
+  situacao?: string;
 }
 
 interface LocationData {
@@ -22,7 +23,10 @@ interface LocationData {
   local: string;
   total_secoes: number;
   secoes_detalhes: SecaoDetalhe[];
+  tem_secao_aguardando?: boolean;
 }
+
+const AGUARDANDO_HINT = 'Cadastro aguardando processamento no TSE';
 
 interface AgregacaoFields {
   agregar?: boolean;
@@ -770,6 +774,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
           <span className="text-[11.5px] text-ink-4 whitespace-nowrap">
             {formatNumber(sortedData.length)} locais
           </span>
+          <span className="text-[11.5px] text-ink-3 whitespace-nowrap">
+            <span className="text-warn font-bold">*</span> {AGUARDANDO_HINT}
+          </span>
           <span className="flex-1 h-px bg-border" />
           {(capitalLimit > 0 || interiorLimit > 0) && (
             <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
@@ -822,6 +829,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                       </td>
                       <td className="px-4 py-3 font-medium text-ink">
                         {row.local}
+                        {row.tem_secao_aguardando && <span className="text-warn font-bold" title={AGUARDANDO_HINT} aria-label={AGUARDANDO_HINT}>*</span>}
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
@@ -829,9 +837,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                             <span
                               key={`${rowId}-${s.secao}`}
                               className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap transition-colors ${getBadgeClasses(s.aptos, limit)}`}
-                              title={`Seção ${padSecao(s.secao)} · ${formatNumber(s.aptos)} eleitores`}
+                              title={s.situacao ? `Seção ${padSecao(s.secao)} · ${AGUARDANDO_HINT}` : `Seção ${padSecao(s.secao)} · ${formatNumber(s.aptos)} eleitores`}
                             >
-                              <span className="font-bold">{padSecao(s.secao)}</span>
+                              <span className="font-bold">{padSecao(s.secao)}{s.situacao && <span className="text-warn">*</span>}</span>
                               <span className="opacity-40">·</span>
                               <span className="font-semibold">{formatNumber(s.aptos)}</span>
                             </span>

@@ -5,14 +5,17 @@ import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db, makeRowId } from '@/lib/firebase';
 import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
-interface SecaoDetalhe { secao: string; aptos: number; }
+interface SecaoDetalhe { secao: string; aptos: number; situacao?: string; }
 interface LocationData {
   zona: number | string;
   municipio: string;
   local: string;
   total_secoes: number;
   secoes_detalhes: SecaoDetalhe[];
+  tem_secao_aguardando?: boolean;
 }
+
+const AGUARDANDO_HINT = 'Cadastro aguardando processamento no TSE';
 interface CicloDoc {
   id: string;
   capitalLimit: number;
@@ -233,6 +236,9 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             {formatNumber(filteredData.length)} locais
             {ciclo ? ` · ciclo ${selectedId} aplicado` : ''}
           </span>
+          <span className="text-[11.5px] text-ink-3 whitespace-nowrap">
+            <span className="text-warn font-bold">*</span> {AGUARDANDO_HINT}
+          </span>
           <span className="flex-1 h-px bg-border" />
           {/* Legenda — só com ciclo selecionado */}
           {ciclo && <div className="flex items-center gap-4 flex-wrap text-[12px] text-ink-3">
@@ -279,15 +285,19 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                         {row.municipio}
                         <div className="text-[10px] font-medium text-ink-4">{isCapital ? 'capital' : 'interior'}</div>
                       </td>
-                      <td className="px-4 py-3 font-medium text-ink">{row.local}</td>
+                      <td className="px-4 py-3 font-medium text-ink">
+                        {row.local}
+                        {row.tem_secao_aguardando && <span className="text-warn font-bold" title={AGUARDANDO_HINT} aria-label={AGUARDANDO_HINT}>*</span>}
+                      </td>
                       <td className="px-4 py-2.5">
                         <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
                           {(row.secoes_detalhes ?? []).map(s => (
                             <span
                               key={s.secao}
                               className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap ${getBadgeClass(s.aptos, limit)}`}
+                              title={s.situacao ? `Seção ${padSecao(s.secao)} · ${AGUARDANDO_HINT}` : undefined}
                             >
-                              <span className="font-bold">{padSecao(s.secao)}</span>
+                              <span className="font-bold">{padSecao(s.secao)}{s.situacao && <span className="text-warn">*</span>}</span>
                               <span className="opacity-40">·</span>
                               <span className="font-semibold">{formatNumber(s.aptos)}</span>
                             </span>
