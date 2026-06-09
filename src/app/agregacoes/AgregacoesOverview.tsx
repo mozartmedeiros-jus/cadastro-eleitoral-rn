@@ -146,7 +146,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
               )}
             </div>
             <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
-              <BarChart2 size={20} className="text-accent shrink-0" /> Análise de Agregações Eleitorais
+              <BarChart2 size={20} className="text-accent shrink-0" /> Mapeamento de seções e agregações
             </h1>
           </div>
 

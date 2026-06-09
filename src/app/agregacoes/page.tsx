@@ -3,7 +3,7 @@ import AgregacoesOverview from './AgregacoesOverview';
 import data from '../../../data/cadastro_eleitoral.json';
 
 export const metadata = {
-  title: 'Agregações — Cadastro Eleitoral RN',
+  title: 'Eleitorado — Cadastro Eleitoral RN',
   description: 'Painel analítico de agregações por ciclo.',
 };
 

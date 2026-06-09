@@ -527,7 +527,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
               )}
             </div>
             <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
-              <Database size={20} className="text-accent shrink-0" /> Agregações
+              <Database size={20} className="text-accent shrink-0" /> Estudo de agregações
             </h1>
           </div>
 
