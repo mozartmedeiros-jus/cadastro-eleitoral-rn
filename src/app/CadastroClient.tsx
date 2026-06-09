@@ -170,6 +170,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     return localData[firestoreId]?.totalAgregacoes ?? 0;
   };
 
+  // MRV = Total Seções − Total Agregações (piso 0). Base dos cálculos de dimensionamento.
+  const getMrv = (totalSecoes: number, firestoreId: string): number =>
+    Math.max(0, totalSecoes - getTotalAgregacoes(firestoreId));
+
   // Cascading filter options: cada select respeita a seleção do outro
   const filterOptions = useMemo(() => {
     const zonas = new Set<string>();
@@ -273,16 +277,19 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     let totalMesaMrj = 0;
     let totalPontoApoio = 0;
     let totalAgregacoes = 0;
+    let totalMrv = 0;
 
     filteredData.forEach(d => {
+      const fid = makeRowId(d.zona, d.municipio, d.local);
+      const mrv = getMrv(d.total_secoes, fid);
       totalSecoes += d.total_secoes;
+      totalMrv += mrv;
       totalAptos += d.qtd_aptos;
       totalIdosos += d.qde_idosos;
       totalDefic += d.qde_eleit_c_defic;
       totalAnalfabetos += d.qde_analfabetos;
-      totalAdministradores += getAdministrador(d.total_secoes);
-      totalCoordAcess += getCoordAcess(d.total_secoes);
-      const fid = makeRowId(d.zona, d.municipio, d.local);
+      totalAdministradores += getAdministrador(mrv);
+      totalCoordAcess += getCoordAcess(mrv);
       totalMesaMrj += getMesaMrj(fid);
       totalPontoApoio += getPontoApoio(fid);
       totalAgregacoes += getTotalAgregacoes(fid);
@@ -294,7 +301,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     return {
       totalLocais: filteredData.length,
       totalSecoes,
-      totalMesarios: totalSecoes * 4,
+      totalMesarios: totalMrv * 4,
       totalAdministradores,
       totalCoordAcess,
       totalAuxServ: filteredData.length * AUX_SERV_POR_LOCAL,
@@ -343,19 +350,21 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const exportCSV = () => {
     // Generate CSV contents
-    const headers = ['Mesarios (MRV)', 'Administrador de Predio', 'Coord. Acess.', 'Aux. Serv. Eleitorais', 'Total Agregacoes', 'Mesa MRJ', 'Mesarios MRJ', 'Ponto de Apoio', 'ADM Predio Extra', 'Zona', 'Municipio', 'Local', 'Total Secoes', 'Secoes', 'Qtd Aptos', 'Idosos', 'Analfabetos', 'Deficientes'];
+    const headers = ['Mesarios (MRV)', 'Administrador de Predio', 'Coord. Acess.', 'Aux. Serv. Eleitorais', 'Total Agregacoes', 'MRV', 'Mesa MRJ', 'Mesarios MRJ', 'Ponto de Apoio', 'ADM Predio Extra', 'Zona', 'Municipio', 'Local', 'Total Secoes', 'Secoes', 'Qtd Aptos', 'Idosos', 'Analfabetos', 'Deficientes'];
     const csvRows = [headers.join(';')];
 
     sortedData.forEach(d => {
       const fid = makeRowId(d.zona, d.municipio, d.local);
       const mesaMrj = getMesaMrj(fid);
       const pontoApoio = getPontoApoio(fid);
+      const mrv = getMrv(d.total_secoes, fid);
       const row = [
-        d.total_secoes * 4,
-        getAdministrador(d.total_secoes),
-        getCoordAcess(d.total_secoes),
+        mrv * 4,
+        getAdministrador(mrv),
+        getCoordAcess(mrv),
         AUX_SERV_POR_LOCAL,
         getTotalAgregacoes(fid),
+        mrv,
         mesaMrj,
         mesaMrj * 2,
         pontoApoio,
@@ -396,9 +405,9 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     { label: 'Eleitores Aptos', value: formatNumber(kpis.totalAptos), sub: 'total de cidadãos', accent: true },
   ];
   const calcKpis = [
-    { label: 'Mesários (MRV)', value: formatNumber(kpis.totalMesarios), sub: 'seções × 4' },
-    { label: 'ADM Prédio', value: formatNumber(kpis.totalAdministradores), sub: 'conforme nº de seções' },
-    { label: 'Coord. Acess.', value: formatNumber(kpis.totalCoordAcess), sub: 'conforme nº de seções' },
+    { label: 'Mesários (MRV)', value: formatNumber(kpis.totalMesarios), sub: 'MRV × 4' },
+    { label: 'ADM Prédio', value: formatNumber(kpis.totalAdministradores), sub: 'conforme MRV' },
+    { label: 'Coord. Acess.', value: formatNumber(kpis.totalCoordAcess), sub: 'conforme MRV' },
     { label: 'Aux. Serv. Eleitorais', value: formatNumber(kpis.totalAuxServ), sub: 'locais × 3' },
     { label: 'Total Agregações', value: formatNumber(kpis.totalAgregacoes), sub: 'informado por admin' },
     { label: 'Mesa MRJ', value: formatNumber(kpis.totalMesaMrj), sub: 'informado por admin' },
@@ -600,6 +609,9 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                   <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
                     <span className="flex flex-col leading-[1.15] items-center"><span>Total</span><span>Agregações</span></span>
                   </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3" title="Total Seções − Total Agregações">
+                    MRV
+                  </th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
                     <span className="flex flex-col leading-[1.15] items-center"><span>Mesários</span><span>(MRV)</span></span>
                   </th>
@@ -631,6 +643,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                   const rowId = `${row.zona}-${row.municipio}-${row.local}`;
                   const firestoreId = makeRowId(row.zona, row.municipio, row.local);
                   const isExpanded = expandedRows[rowId] || false;
+                  const mrv = getMrv(row.total_secoes, firestoreId);
 
                   return (
                     <React.Fragment key={rowId}>
@@ -705,12 +718,14 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                             </span>
                           )}
                         </td>
+                        {/* MRV = Total Seções − Total Agregações */}
+                        <td className="px-4 py-[11px] text-center font-bold text-ink num">{mrv}</td>
                         {/* Mesários (MRV) */}
-                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{row.total_secoes * 4}</td>
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{mrv * 4}</td>
                         {/* Administrador de Prédio */}
-                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{getAdministrador(row.total_secoes)}</td>
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{getAdministrador(mrv)}</td>
                         {/* Coord. Acess. */}
-                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{getCoordAcess(row.total_secoes)}</td>
+                        <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{getCoordAcess(mrv)}</td>
                         {/* Aux. Serv. Eleitorais */}
                         <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{AUX_SERV_POR_LOCAL}</td>
                         {/* Mesa MRJ */}
@@ -822,7 +837,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                       {/* Linha expandida */}
                       {isExpanded && (
                         <tr className="bg-surface-2">
-                          <td colSpan={13} className="px-0 py-0 border-t border-b border-accent-soft-border">
+                          <td colSpan={14} className="px-0 py-0 border-t border-b border-accent-soft-border">
                             <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-3 gap-6">
                               {/* Painel esquerdo: estatísticas */}
                               <div className="md:col-span-2 space-y-3.5">
@@ -886,7 +901,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
                 {sortedData.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="p-14 text-center text-ink-3 text-[13.5px]">
+                    <td colSpan={14} className="p-14 text-center text-ink-3 text-[13.5px]">
                       Nenhum local de votação corresponde aos filtros informados.
                     </td>
                   </tr>
