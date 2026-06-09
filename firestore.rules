@@ -25,7 +25,8 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAuthorizedAdmin()
                           && validNumberField(request.resource.data, 'mesaMrj', 9999)
-                          && validNumberField(request.resource.data, 'pontoApoio', 9999);
+                          && validNumberField(request.resource.data, 'pontoApoio', 9999)
+                          && validNumberField(request.resource.data, 'totalAgregacoes', 9999);
       allow delete: if isAuthorizedAdmin();
     }
 

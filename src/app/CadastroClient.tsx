@@ -101,11 +101,12 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   const { user, authReady, canEdit } = useAuth();
 
   // Editable per-location data from Firestore (keyed by Firestore doc id)
-  type LocalFields = { mesaMrj?: number; pontoApoio?: number };
+  type LocalFields = { mesaMrj?: number; pontoApoio?: number; totalAgregacoes?: number };
   const [localData, setLocalData] = useState<Record<string, LocalFields>>({});
   // Local drafts while editing (uncommitted input values)
   const [mrjDrafts, setMrjDrafts] = useState<Record<string, string>>({});
   const [pontoDrafts, setPontoDrafts] = useState<Record<string, string>>({});
+  const [agregDrafts, setAgregDrafts] = useState<Record<string, string>>({});
 
 
   // Subscribe to per-location editable data (all users, public read)
@@ -117,6 +118,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
         next[d.id] = {
           mesaMrj: typeof data.mesaMrj === 'number' ? data.mesaMrj : undefined,
           pontoApoio: typeof data.pontoApoio === 'number' ? data.pontoApoio : undefined,
+          totalAgregacoes: typeof data.totalAgregacoes === 'number' ? data.totalAgregacoes : undefined,
         };
       });
       setLocalData(next);
@@ -127,7 +129,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const saveField = useCallback(async (
     firestoreId: string,
-    field: 'mesaMrj' | 'pontoApoio',
+    field: 'mesaMrj' | 'pontoApoio' | 'totalAgregacoes',
     value: number,
   ) => {
     try {
@@ -157,6 +159,15 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       return Number.isFinite(n) ? n : 0;
     }
     return localData[firestoreId]?.pontoApoio ?? 0;
+  };
+
+  const getTotalAgregacoes = (firestoreId: string): number => {
+    const draft = agregDrafts[firestoreId];
+    if (draft !== undefined) {
+      const n = Number(draft);
+      return Number.isFinite(n) ? n : 0;
+    }
+    return localData[firestoreId]?.totalAgregacoes ?? 0;
   };
 
   // Cascading filter options: cada select respeita a seleção do outro
@@ -261,6 +272,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     let totalCoordAcess = 0;
     let totalMesaMrj = 0;
     let totalPontoApoio = 0;
+    let totalAgregacoes = 0;
 
     filteredData.forEach(d => {
       totalSecoes += d.total_secoes;
@@ -273,6 +285,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       const fid = makeRowId(d.zona, d.municipio, d.local);
       totalMesaMrj += getMesaMrj(fid);
       totalPontoApoio += getPontoApoio(fid);
+      totalAgregacoes += getTotalAgregacoes(fid);
     });
 
     const uniqueZonas = new Set(filteredData.map(d => String(d.zona))).size;
@@ -289,6 +302,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       totalMesariosMrj: totalMesaMrj * 2,
       totalPontoApoio,
       totalAdmPredioExtra: totalPontoApoio * 2,
+      totalAgregacoes,
       totalAptos,
       totalIdosos,
       totalDefic,
@@ -297,7 +311,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       uniqueMunis
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredData, localData, mrjDrafts, pontoDrafts]);
+  }, [filteredData, localData, mrjDrafts, pontoDrafts, agregDrafts]);
 
   // Reset page when filters or page size change
   useEffect(() => {
@@ -329,7 +343,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const exportCSV = () => {
     // Generate CSV contents
-    const headers = ['Mesarios (MRV)', 'Administrador de Predio', 'Coord. Acess.', 'Aux. Serv. Eleitorais', 'Mesa MRJ', 'Mesarios MRJ', 'Ponto de Apoio', 'ADM Predio Extra', 'Zona', 'Municipio', 'Local', 'Total Secoes', 'Secoes', 'Qtd Aptos', 'Idosos', 'Analfabetos', 'Deficientes'];
+    const headers = ['Mesarios (MRV)', 'Administrador de Predio', 'Coord. Acess.', 'Aux. Serv. Eleitorais', 'Total Agregacoes', 'Mesa MRJ', 'Mesarios MRJ', 'Ponto de Apoio', 'ADM Predio Extra', 'Zona', 'Municipio', 'Local', 'Total Secoes', 'Secoes', 'Qtd Aptos', 'Idosos', 'Analfabetos', 'Deficientes'];
     const csvRows = [headers.join(';')];
 
     sortedData.forEach(d => {
@@ -341,6 +355,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
         getAdministrador(d.total_secoes),
         getCoordAcess(d.total_secoes),
         AUX_SERV_POR_LOCAL,
+        getTotalAgregacoes(fid),
         mesaMrj,
         mesaMrj * 2,
         pontoApoio,
@@ -385,6 +400,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     { label: 'ADM Prédio', value: formatNumber(kpis.totalAdministradores), sub: 'conforme nº de seções' },
     { label: 'Coord. Acess.', value: formatNumber(kpis.totalCoordAcess), sub: 'conforme nº de seções' },
     { label: 'Aux. Serv. Eleitorais', value: formatNumber(kpis.totalAuxServ), sub: 'locais × 3' },
+    { label: 'Total Agregações', value: formatNumber(kpis.totalAgregacoes), sub: 'informado por admin' },
     { label: 'Mesa MRJ', value: formatNumber(kpis.totalMesaMrj), sub: 'informado por admin' },
     { label: 'Mesários MRJ', value: formatNumber(kpis.totalMesariosMrj), sub: 'Mesa MRJ × 2' },
     { label: 'Ponto de Apoio', value: formatNumber(kpis.totalPontoApoio), sub: 'informado por admin' },
@@ -563,10 +579,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                   <SortHead field="municipio">Município</SortHead>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">Local de Votação</th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
-                    <span className="flex flex-col leading-[1.15] items-center"><span>Qtde</span><span>Local</span></span>
-                  </th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
                     <span className="flex flex-col leading-[1.15] items-center"><span>Total</span><span>Seções</span></span>
+                  </th>
+                  <th className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
+                    <span className="flex flex-col leading-[1.15] items-center"><span>Total</span><span>Agregações</span></span>
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3">
                     <span className="flex flex-col leading-[1.15] items-center"><span>Mesários</span><span>(MRV)</span></span>
@@ -623,10 +639,56 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                             <span className="whitespace-normal break-words leading-snug font-medium" title={row.local}>{row.local}{row.tem_secao_aguardando && <AguardandoMark />}</span>
                           </div>
                         </td>
-                        {/* Local (Count) */}
-                        <td className="px-4 py-[11px] text-center text-ink-3 num">1</td>
                         {/* Total de secoes */}
                         <td className="px-4 py-[11px] text-center font-bold text-ink num">{row.total_secoes}</td>
+                        {/* Total Agregações */}
+                        <td className="px-2 py-[11px] text-center"
+                            onClick={(e) => { if (canEdit) e.stopPropagation(); }}>
+                          {canEdit ? (
+                            <input
+                              type="number"
+                              min={0}
+                              max={9999}
+                              step={1}
+                              aria-label="Total de agregações"
+                              value={agregDrafts[firestoreId] ?? (localData[firestoreId]?.totalAgregacoes ?? '')}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setAgregDrafts(d => ({ ...d, [firestoreId]: e.target.value }));
+                              }}
+                              onBlur={(e) => {
+                                e.stopPropagation();
+                                const raw = agregDrafts[firestoreId];
+                                if (raw === undefined) return;
+                                const n = raw === '' ? 0 : Math.max(0, Math.min(9999, Math.floor(Number(raw))));
+                                if (!Number.isFinite(n)) return;
+                                saveField(firestoreId, 'totalAgregacoes', n);
+                                setAgregDrafts(d => {
+                                  const nd = { ...d };
+                                  delete nd[firestoreId];
+                                  return nd;
+                                });
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Escape') {
+                                  setAgregDrafts(d => {
+                                    const nd = { ...d };
+                                    delete nd[firestoreId];
+                                    return nd;
+                                  });
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                              className="ds-num w-16 h-8 px-2 text-center rounded-[4px] bg-surface border border-border-strong text-sm font-bold text-ink num hover:border-accent focus:border-accent outline-none transition-colors"
+                            />
+                          ) : (
+                            <span className="font-bold text-ink num">
+                              {localData[firestoreId]?.totalAgregacoes ?? 0}
+                            </span>
+                          )}
+                        </td>
                         {/* Mesários (MRV) */}
                         <td className="px-4 py-[11px] text-center font-semibold text-ink-2 num">{row.total_secoes * 4}</td>
                         {/* Administrador de Prédio */}
