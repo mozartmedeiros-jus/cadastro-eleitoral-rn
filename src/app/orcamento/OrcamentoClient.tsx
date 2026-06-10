@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -8,18 +8,26 @@ import {
   Search,
   Filter,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Upload,
+  Loader2
 } from 'lucide-react';
 import {
   collection,
   query,
   orderBy,
   onSnapshot,
+  getDocs,
+  writeBatch,
+  doc,
+  serverTimestamp,
   type Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from 'next-themes';
+import { parseEmpenhos } from '@/lib/orcamento-xlsx';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -81,10 +89,16 @@ function formatPercent(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(val || 0);
 }
 
-// "2026-06" → "06/2026"
+const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+// "2026-06" → "jun/2026"
 function formatMonth(mesCode: string) {
-  return mesCode.split('-').reverse().join('/');
+  const [ano, mes] = mesCode.split('-');
+  return `${MESES_ABREV[Number(mes) - 1] ?? mes}/${ano}`;
 }
+
+// Tamanho máximo por lote do Firestore client SDK
+const BATCH_LIMIT = 500;
 
 // Cores do tema lidas dos tokens CSS (acompanham claro/escuro). Defaults = tema claro.
 const FALLBACK_COLORS = {
@@ -105,6 +119,15 @@ export default function OrcamentoClient() {
   const [mesFilter, setMesFilter] = useState<string>('all');
   const [natFilter, setNatFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const defaultSelectedRef = useRef(false);
+
+  // Import de novo .xlsx (substitui todos os dados)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importDone, setImportDone] = useState(false);
 
   // Cores do tema, relidas dos tokens quando o tema troca (A Regra do Espelho).
   const [themeColors, setThemeColors] = useState(FALLBACK_COLORS);
@@ -158,6 +181,14 @@ export default function OrcamentoClient() {
     while (i > 0 && totalDoMes(uniqueMeses[i]) === totalDoMes(uniqueMeses[i - 1])) i--;
     return uniqueMeses[i];
   }, [data, uniqueMeses]);
+
+  // Pré-seleciona o mês de referência na primeira carga (uma única vez).
+  useEffect(() => {
+    if (!defaultSelectedRef.current && refMonth) {
+      setMesFilter(refMonth);
+      defaultSelectedRef.current = true;
+    }
+  }, [refMonth]);
 
   // Predicado de busca compartilhado (tabela, gráfico e totais).
   const matchesText = useMemo(() => {
@@ -234,6 +265,88 @@ export default function OrcamentoClient() {
     },
   }), [themeColors]);
 
+  // --- Import de novo .xlsx (substitui todos os dados) ---
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    e.target.value = ''; // permite reescolher o mesmo arquivo
+    if (file) {
+      setImportError(null);
+      setImportStatus(null);
+      setImportDone(false);
+      setPendingFile(file);
+    }
+  };
+
+  const closeImport = () => {
+    if (importing) return;
+    setPendingFile(null);
+    setImportError(null);
+    setImportStatus(null);
+    setImportDone(false);
+  };
+
+  const commitInBatches = async (
+    ops: ((b: ReturnType<typeof writeBatch>) => void)[],
+    onProgress: (done: number, total: number) => void,
+  ) => {
+    for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      ops.slice(i, i + BATCH_LIMIT).forEach(op => op(batch));
+      await batch.commit();
+      onProgress(Math.min(i + BATCH_LIMIT, ops.length), ops.length);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!pendingFile) return;
+    setImporting(true);
+    setImportError(null);
+    try {
+      setImportStatus('Lendo planilha…');
+      const XLSX = (await import('xlsx')).default;
+      const wb = XLSX.read(await pendingFile.arrayBuffer(), { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
+      const novos = parseEmpenhos(rows);
+
+      if (novos.length === 0) {
+        throw new Error(
+          'Nenhum empenho válido encontrado. Confira se o arquivo segue o layout da planilha de execução.',
+        );
+      }
+
+      const col = collection(db, 'opl_empenhos');
+      const novosIds = new Set(novos.map(n => n.docId));
+
+      // 1) grava/atualiza todos os novos
+      await commitInBatches(
+        novos.map(n => (b: ReturnType<typeof writeBatch>) =>
+          b.set(doc(col, n.docId), { ...n.data, updatedAt: serverTimestamp() }),
+        ),
+        (done, total) => setImportStatus(`Gravando ${done}/${total}…`),
+      );
+
+      // 2) remove os antigos que não estão no novo arquivo (substituição completa)
+      setImportStatus('Removendo registros antigos…');
+      const snap = await getDocs(col);
+      const staleIds = snap.docs.map(d => d.id).filter(id => !novosIds.has(id));
+      if (staleIds.length > 0) {
+        await commitInBatches(
+          staleIds.map(id => (b: ReturnType<typeof writeBatch>) => b.delete(doc(col, id))),
+          (done, total) => setImportStatus(`Removendo ${done}/${total}…`),
+        );
+      }
+
+      setImportStatus(`${novos.length} empenhos importados com sucesso.`);
+      setImportDone(true);
+    } catch (err) {
+      console.error('Falha ao importar .xlsx:', err);
+      setImportError(err instanceof Error ? err.message : 'Falha ao importar o arquivo.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (!authReady || (canEdit && loading)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -264,19 +377,31 @@ export default function OrcamentoClient() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <header className="mb-8">
-        <div className="flex items-center gap-2 text-[11px] text-ink-3">
-          <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
-          <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
-          <span className="text-accent font-semibold whitespace-nowrap">Execução Orçamentária</span>
-          {refMonth && (
-            <>
-              <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
-              <span className="whitespace-nowrap">Dados de {formatMonth(refMonth)}</span>
-            </>
-          )}
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] text-ink-3">
+            <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
+            <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+            <span className="text-accent font-semibold whitespace-nowrap">Execução Orçamentária</span>
+            {refMonth && (
+              <>
+                <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+                <span className="whitespace-nowrap">Dados de {formatMonth(refMonth)}</span>
+              </>
+            )}
+          </div>
+          <h1 className="mt-0.5 text-2xl md:text-3xl font-bold tracking-tight">Execução Orçamentária — Pleitos 2026</h1>
         </div>
-        <h1 className="mt-0.5 text-2xl md:text-3xl font-bold tracking-tight">Execução Orçamentária — Pleitos 2026</h1>
+        <div className="shrink-0">
+          <input ref={fileInputRef} type="file" accept=".xlsx" hidden onChange={onFileChange} />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Atualizar dados a partir de uma nova planilha"
+            className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
+          >
+            <Upload size={14} /> <span className="hidden sm:inline">Atualizar dados</span>
+          </button>
+        </div>
       </header>
 
       {/* Indicadores-âncora — posição de um mês, respeitando os filtros */}
@@ -449,6 +574,94 @@ export default function OrcamentoClient() {
           </table>
         </div>
       </section>
+
+      {/* Modal: importar/substituir dados */}
+      {pendingFile && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+          <div
+            className="bg-surface border border-border-strong rounded-[8px] max-w-md w-full p-6"
+            style={{ boxShadow: 'var(--shadow-menu)' }}
+          >
+            {importError ? (
+              <>
+                <div className="flex items-start gap-3 mb-4">
+                  <AlertCircle size={20} className="text-danger shrink-0 mt-0.5" />
+                  <div>
+                    <h2 className="text-[15px] font-bold text-ink mb-1">Falha na importação</h2>
+                    <p className="text-[13px] text-ink-2 leading-relaxed">{importError}</p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={closeImport}
+                    className="h-[38px] px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-medium hover:bg-surface-3 hover:text-ink transition-colors"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    onClick={confirmImport}
+                    className="h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong transition-colors"
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              </>
+            ) : importDone ? (
+              <>
+                <div className="flex items-start gap-3 mb-4">
+                  <BarChart3 size={20} className="text-accent shrink-0 mt-0.5" />
+                  <div>
+                    <h2 className="text-[15px] font-bold text-ink mb-1">Dados atualizados</h2>
+                    <p className="text-[13px] text-ink-2 leading-relaxed">{importStatus}</p>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={closeImport}
+                    className="h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong transition-colors"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3 mb-4">
+                  <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
+                  <div>
+                    <h2 className="text-[15px] font-bold text-ink mb-1">Substituir todos os dados</h2>
+                    <p className="text-[13px] text-ink-2 leading-relaxed">
+                      Todos os empenhos atuais serão <strong>apagados</strong> e substituídos pelos dados de{' '}
+                      <strong className="break-all">{pendingFile.name}</strong>. Esta ação não pode ser desfeita.
+                    </p>
+                    {importing && importStatus && (
+                      <p className="mt-3 text-[12px] text-ink-3 flex items-center gap-2">
+                        <Loader2 size={14} className="animate-spin" /> {importStatus}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={closeImport}
+                    disabled={importing}
+                    className="h-[38px] px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-medium hover:bg-surface-3 hover:text-ink transition-colors disabled:opacity-40"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmImport}
+                    disabled={importing}
+                    className="h-[38px] px-4 rounded-[6px] bg-danger border border-danger text-white text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+                  >
+                    {importing ? 'Substituindo…' : 'Confirmar — substituir tudo'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
