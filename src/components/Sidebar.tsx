@@ -8,20 +8,28 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
 
+type NavGroup = 'nav' | 'sple';
+
 interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
   sub: boolean;
   authRequired: boolean;
+  group: NavGroup;
 }
 
 const navigation: NavItem[] = [
-  { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false },
-  { name: 'Eleitores por seção', href: '/agregacoes',     icon: Map,       sub: false, authRequired: false },
-  { name: 'Execução Orçamentária', href: '/orcamento', icon: BarChart3, sub: false, authRequired: true },
-  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true  },
-  { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true  },
+  { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false, group: 'nav'  },
+  { name: 'Eleitores por seção', href: '/agregacoes',     icon: Map,       sub: false, authRequired: false, group: 'nav'  },
+  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true,  group: 'nav'  },
+  { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true,  group: 'nav'  },
+  { name: 'Execução Orçamentária', href: '/orcamento', icon: BarChart3, sub: false, authRequired: true,  group: 'sple' },
+];
+
+const navGroups: { id: NavGroup; label: string }[] = [
+  { id: 'nav',  label: 'Navegação' },
+  { id: 'sple', label: 'Exclusivo SPLE' },
 ];
 
 export default function Sidebar() {
@@ -71,43 +79,52 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-[14px] py-[18px] overflow-y-auto">
-          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-4)] px-[10px] pb-[10px]">
-            Navegação
-          </div>
-
-          {visibleNav.map((item) => {
-            const active = item.href === '/'
-              ? pathname === '/'
-              : item.href === '/agregacoes'
-                ? pathname === '/agregacoes'
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
+          {navGroups.map((grp, grpIdx) => {
+            const items = visibleNav.filter(item => item.group === grp.id);
+            if (items.length === 0) return null;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`
-                  relative flex items-center gap-[11px]
-                  ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
-                  rounded-[var(--radius-ds-md)] mb-[3px]
-                  font-medium border transition-colors duration-[120ms]
-                  ${active
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-soft-border)] font-semibold'
-                    : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
-                  }
-                `}
-              >
-                <Icon
-                  size={item.sub ? 15 : 18}
-                  className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
-                />
-                <span>{item.name}</span>
-                {active && (
-                  <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent)] rounded-r-[3px]" />
-                )}
-              </Link>
+              <div key={grp.id} className={grpIdx > 0 ? 'mt-[18px]' : undefined}>
+                <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-4)] px-[10px] pb-[10px]">
+                  {grp.label}
+                </div>
+
+                {items.map((item) => {
+                  const active = item.href === '/'
+                    ? pathname === '/'
+                    : item.href === '/agregacoes'
+                      ? pathname === '/agregacoes'
+                      : pathname.startsWith(item.href);
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={`
+                        relative flex items-center gap-[11px]
+                        ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
+                        rounded-[var(--radius-ds-md)] mb-[3px]
+                        font-medium border transition-colors duration-[120ms]
+                        ${active
+                          ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-soft-border)] font-semibold'
+                          : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
+                        }
+                      `}
+                    >
+                      <Icon
+                        size={item.sub ? 15 : 18}
+                        className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
+                      />
+                      <span>{item.name}</span>
+                      {active && (
+                        <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent)] rounded-r-[3px]" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
