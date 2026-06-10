@@ -64,13 +64,24 @@ async function runIngestion() {
     const notaEmpenho = row[4];
     if (!notaEmpenho) continue;
 
+    // A NE tem algum valor em algum mês? Se não tiver (empenho sem entrada),
+    // gravamos os 12 meses zerados para que ela exista no banco.
+    let neHasMovement = false;
+    for (let mes = 0; mes < 12; mes++) {
+      const c = 16 + mes * 3;
+      if ((parseFloat(row[c] || 0)) || (parseFloat(row[c + 1] || 0)) || (parseFloat(row[c + 2] || 0))) {
+        neHasMovement = true;
+        break;
+      }
+    }
+
     for (let mes = 0; mes < 12; mes++) {
       const colStart = 16 + (mes * 3);
       const emp = parseFloat(row[colStart] || 0);
       const liq = parseFloat(row[colStart + 1] || 0);
       const pag = parseFloat(row[colStart + 2] || 0);
 
-      if (emp === 0 && liq === 0 && pag === 0) continue;
+      if (emp === 0 && liq === 0 && pag === 0 && neHasMovement) continue;
 
       const mesCode = `${anoReferencia}-${String(mes + 1).padStart(2, '0')}`;
       const referenciaDate = new Date(anoReferencia, mes, 1);

@@ -54,13 +54,24 @@ export function parseEmpenhos(rows: unknown[][], ano = 2026): ParsedEmpenho[] {
     const notaEmpenho = row[4];
     if (!notaEmpenho) continue; // linha sem NE é descartada
 
+    // A NE tem algum valor em algum mês? Se não (empenho sem entrada), gravamos
+    // os 12 meses zerados para que ela exista no banco.
+    let neHasMovement = false;
+    for (let mes = 0; mes < 12; mes++) {
+      const c = 16 + mes * 3;
+      if (toNumber(row[c]) || toNumber(row[c + 1]) || toNumber(row[c + 2])) {
+        neHasMovement = true;
+        break;
+      }
+    }
+
     for (let mes = 0; mes < 12; mes++) {
       const colStart = 16 + mes * 3;
       const emp = toNumber(row[colStart]);
       const liq = toNumber(row[colStart + 1]);
       const pag = toNumber(row[colStart + 2]);
 
-      if (emp === 0 && liq === 0 && pag === 0) continue; // mês sem movimento
+      if (emp === 0 && liq === 0 && pag === 0 && neHasMovement) continue; // mês sem movimento (NE com entrada em outro mês)
 
       const mesCode = `${ano}-${String(mes + 1).padStart(2, '0')}`;
       out.push({

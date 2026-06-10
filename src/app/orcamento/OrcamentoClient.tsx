@@ -119,6 +119,11 @@ function isSuplementar(descricao: string) {
     .startsWith('ELEICAO SUPLEMENTAR');
 }
 
+// Empenho "sem entrada": nenhum valor empenhado/liquidado/pago.
+function semEntrada(d: Empenho) {
+  return d.despesasEmpenhadas === 0 && d.despesasLiquidadas === 0 && d.despesasPagas === 0;
+}
+
 function VarArrow({ dir }: { dir: VarDir }) {
   if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou em relação ao mês anterior" />;
   if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu em relação ao mês anterior" />;
@@ -157,6 +162,7 @@ export default function OrcamentoClient() {
   const [search, setSearch] = useState('');
   const [changedFilter, setChangedFilter] = useState(false);
   const [showSuplementar, setShowSuplementar] = useState(false); // default: ocultar
+  const [showSemEntrada, setShowSemEntrada] = useState(false); // default: ocultar
   const defaultSelectedRef = useRef(false);
 
   // Import de novo .xlsx (substitui todos os dados)
@@ -244,9 +250,10 @@ export default function OrcamentoClient() {
       const matchMes = mesFilter === 'all' || d.mesCode === mesFilter;
       const matchNat = natFilter === 'all' || d.naturezaDespesa === natFilter;
       const matchSup = showSuplementar || !isSuplementar(d.descricao);
-      return matchMes && matchNat && matchSup && matchesText(d);
+      const matchEntrada = showSemEntrada || !semEntrada(d);
+      return matchMes && matchNat && matchSup && matchEntrada && matchesText(d);
     });
-  }, [data, mesFilter, natFilter, showSuplementar, matchesText]);
+  }, [data, mesFilter, natFilter, showSuplementar, showSemEntrada, matchesText]);
 
   // Mês imediatamente anterior de cada NE (base da sinalização de variação).
   const prevByDocId = useMemo(() => {
@@ -292,13 +299,14 @@ export default function OrcamentoClient() {
         d.mesCode === summaryMonth &&
         (natFilter === 'all' || d.naturezaDespesa === natFilter) &&
         (showSuplementar || !isSuplementar(d.descricao)) &&
+        (showSemEntrada || !semEntrada(d)) &&
         matchesText(d)
     );
     const emp = rows.reduce((a, c) => a + c.despesasEmpenhadas, 0);
     const liq = rows.reduce((a, c) => a + c.despesasLiquidadas, 0);
     const pag = rows.reduce((a, c) => a + c.despesasPagas, 0);
     return { emp, liq, pag, count: rows.length, execLiq: emp ? liq / emp : 0, execPag: emp ? pag / emp : 0 };
-  }, [data, summaryMonth, natFilter, showSuplementar, matchesText]);
+  }, [data, summaryMonth, natFilter, showSuplementar, showSemEntrada, matchesText]);
 
   const summaryFiltered = natFilter !== 'all' || search.trim() !== '';
 
@@ -309,13 +317,15 @@ export default function OrcamentoClient() {
     natFilter === 'all' &&
     search.trim() === '' &&
     !changedFilter &&
-    !showSuplementar;
+    !showSuplementar &&
+    !showSemEntrada;
   const clearFilters = () => {
     setMesFilter(defaultMonth);
     setNatFilter('all');
     setSearch('');
     setChangedFilter(false);
     setShowSuplementar(false);
+    setShowSemEntrada(false);
   };
 
   const indicadoresHint = summaryMonth
@@ -615,6 +625,20 @@ export default function OrcamentoClient() {
             >
               {showSuplementar ? <EyeOff size={14} /> : <Eye size={14} />}
               {showSuplementar ? 'Ocultar ELEIÇÃO SUPLEMENTAR' : 'Mostrar ELEIÇÃO SUPLEMENTAR'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSemEntrada(v => !v)}
+              aria-pressed={showSemEntrada}
+              title="Empenhos sem nenhum valor empenhado, liquidado ou pago"
+              className={`inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border text-[12.5px] font-medium transition-colors ${
+                showSemEntrada
+                  ? 'bg-accent-soft border-accent-soft-border text-accent'
+                  : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
+              }`}
+            >
+              {showSemEntrada ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showSemEntrada ? 'Ocultar empenho sem entrada' : 'Mostrar empenho sem entrada'}
             </button>
           </div>
           {!isDefaultView && (
