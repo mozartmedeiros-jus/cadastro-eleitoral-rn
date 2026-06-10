@@ -19,6 +19,7 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false },
   { name: 'Eleitores por seção', href: '/agregacoes',     icon: Map,       sub: false, authRequired: false },
+  { name: 'Execução Orçamentária', href: '/orcamento', icon: BarChart3, sub: false, authRequired: true },
   { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true  },
   { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true  },
 ];
