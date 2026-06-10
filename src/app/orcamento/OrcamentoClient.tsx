@@ -621,7 +621,7 @@ export default function OrcamentoClient() {
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[12.5px] font-medium hover:bg-surface-3 hover:text-ink transition-colors"
+              className="inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border border-danger-border bg-danger-soft text-danger text-[12.5px] font-medium hover:brightness-95 transition"
             >
               <X size={14} /> Limpar filtros
             </button>
