@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   Upload,
   Loader2,
-  X
+  X,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import {
   collection,
@@ -107,6 +109,16 @@ function varDir(curr: number, prev?: number): VarDir {
   if (prev === undefined || curr === prev) return null;
   return curr > prev ? 'up' : 'down';
 }
+// Empenhos de Eleição Suplementar (descrição inicia com "ELEICAO SUPLEMENTAR",
+// comparando sem acento e sem caixa).
+function isSuplementar(descricao: string) {
+  return (descricao || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .startsWith('ELEICAO SUPLEMENTAR');
+}
+
 function VarArrow({ dir }: { dir: VarDir }) {
   if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou em relação ao mês anterior" />;
   if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu em relação ao mês anterior" />;
@@ -144,6 +156,7 @@ export default function OrcamentoClient() {
   const [natFilter, setNatFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [changedFilter, setChangedFilter] = useState(false);
+  const [showSuplementar, setShowSuplementar] = useState(false); // default: ocultar
   const defaultSelectedRef = useRef(false);
 
   // Import de novo .xlsx (substitui todos os dados)
@@ -230,9 +243,10 @@ export default function OrcamentoClient() {
     return data.filter(d => {
       const matchMes = mesFilter === 'all' || d.mesCode === mesFilter;
       const matchNat = natFilter === 'all' || d.naturezaDespesa === natFilter;
-      return matchMes && matchNat && matchesText(d);
+      const matchSup = showSuplementar || !isSuplementar(d.descricao);
+      return matchMes && matchNat && matchSup && matchesText(d);
     });
-  }, [data, mesFilter, natFilter, matchesText]);
+  }, [data, mesFilter, natFilter, showSuplementar, matchesText]);
 
   // Mês imediatamente anterior de cada NE (base da sinalização de variação).
   const prevByDocId = useMemo(() => {
@@ -277,25 +291,31 @@ export default function OrcamentoClient() {
       d =>
         d.mesCode === summaryMonth &&
         (natFilter === 'all' || d.naturezaDespesa === natFilter) &&
+        (showSuplementar || !isSuplementar(d.descricao)) &&
         matchesText(d)
     );
     const emp = rows.reduce((a, c) => a + c.despesasEmpenhadas, 0);
     const liq = rows.reduce((a, c) => a + c.despesasLiquidadas, 0);
     const pag = rows.reduce((a, c) => a + c.despesasPagas, 0);
     return { emp, liq, pag, count: rows.length, execLiq: emp ? liq / emp : 0, execPag: emp ? pag / emp : 0 };
-  }, [data, summaryMonth, natFilter, matchesText]);
+  }, [data, summaryMonth, natFilter, showSuplementar, matchesText]);
 
   const summaryFiltered = natFilter !== 'all' || search.trim() !== '';
 
   // Estado "padrão" da tela (mês de referência, sem filtros secundários) → controla o botão Limpar.
   const defaultMonth = refMonth ?? 'all';
   const isDefaultView =
-    mesFilter === defaultMonth && natFilter === 'all' && search.trim() === '' && !changedFilter;
+    mesFilter === defaultMonth &&
+    natFilter === 'all' &&
+    search.trim() === '' &&
+    !changedFilter &&
+    !showSuplementar;
   const clearFilters = () => {
     setMesFilter(defaultMonth);
     setNatFilter('all');
     setSearch('');
     setChangedFilter(false);
+    setShowSuplementar(false);
   };
 
   const indicadoresHint = summaryMonth
@@ -569,18 +589,34 @@ export default function OrcamentoClient() {
         </div>
 
         <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-border">
-          <button
-            type="button"
-            onClick={() => setChangedFilter(v => !v)}
-            aria-pressed={changedFilter}
-            className={`inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border text-[12.5px] font-medium transition-colors ${
-              changedFilter
-                ? 'bg-accent-soft border-accent-soft-border text-accent'
-                : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
-            }`}
-          >
-            <Filter size={14} /> Apenas com alteração no mês
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setChangedFilter(v => !v)}
+              aria-pressed={changedFilter}
+              className={`inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border text-[12.5px] font-medium transition-colors ${
+                changedFilter
+                  ? 'bg-accent-soft border-accent-soft-border text-accent'
+                  : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
+              }`}
+            >
+              <Filter size={14} /> Apenas com alteração no mês
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSuplementar(v => !v)}
+              aria-pressed={showSuplementar}
+              title="Empenhos cuja descrição começa com ELEIÇÃO SUPLEMENTAR"
+              className={`inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border text-[12.5px] font-medium transition-colors ${
+                showSuplementar
+                  ? 'bg-accent-soft border-accent-soft-border text-accent'
+                  : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
+              }`}
+            >
+              {showSuplementar ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showSuplementar ? 'Ocultar eleição suplementar' : 'Mostrar eleição suplementar'}
+            </button>
+          </div>
           {!isDefaultView && (
             <button
               type="button"
