@@ -40,6 +40,9 @@ yarn-error.log*
 .firebase/
 firebase-debug.log*
 
+# scripts
+scripts/serviceAccountKey.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
