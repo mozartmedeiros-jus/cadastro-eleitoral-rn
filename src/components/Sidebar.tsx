@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor } from 'lucide-react';
+import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor, ChevronRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
@@ -40,8 +40,17 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  // Accordion de "Agregações" (Ciclos/Análise). Abre ao clicar em Agregações;
+  // fecha ao sair da seção ou ao clicar em "Eleitores por seção".
+  const [agregOpen, setAgregOpen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (pathname.startsWith('/agregacoes/')) setAgregOpen(true);
+    else if (!pathname.startsWith('/agregacoes')) setAgregOpen(false);
+    // em /agregacoes exato: mantém o estado definido pelo clique
+  }, [pathname]);
 
   const visibleNav = navigation.filter(item => !item.authRequired || !!user);
 
@@ -91,18 +100,28 @@ export default function Sidebar() {
                 </div>
 
                 {items.map((item) => {
+                  // Sub-itens (Ciclos/Análise) só aparecem com o accordion aberto.
+                  if (item.sub && !agregOpen) return null;
+
+                  const isAgregNav = item.href === '/agregacoes' && item.group === 'nav';
+                  const isAgregSple = item.href === '/agregacoes' && item.group === 'sple';
                   const active = item.href === '/'
                     ? pathname === '/'
-                    : item.href === '/agregacoes'
-                      ? pathname === '/agregacoes'
-                      : pathname.startsWith(item.href);
+                    : isAgregNav
+                      ? pathname === '/agregacoes' && !agregOpen
+                      : isAgregSple
+                        ? pathname.startsWith('/agregacoes') && agregOpen
+                        : pathname.startsWith(item.href);
                   const Icon = item.icon;
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setOpen(false)}
+                      onClick={() => {
+                        setOpen(false);
+                        if (item.href === '/agregacoes') setAgregOpen(item.group === 'sple');
+                      }}
                       className={`
                         relative flex items-center gap-[11px]
                         ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
@@ -118,7 +137,13 @@ export default function Sidebar() {
                         size={item.sub ? 15 : 18}
                         className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
                       />
-                      <span>{item.name}</span>
+                      <span className="flex-1">{item.name}</span>
+                      {isAgregSple && (
+                        <ChevronRight
+                          size={14}
+                          className={`shrink-0 transition-transform duration-150 ${agregOpen ? 'rotate-90' : ''} ${active ? 'text-[var(--accent-ink)]' : 'text-[var(--ink-4)]'}`}
+                        />
+                      )}
                       {active && (
                         <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent)] rounded-r-[3px]" />
                       )}
