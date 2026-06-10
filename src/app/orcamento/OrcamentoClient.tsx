@@ -113,6 +113,17 @@ function VarArrow({ dir }: { dir: VarDir }) {
   return null;
 }
 
+// Cabeçalho de seção (mesmo padrão da tela de Estatística).
+function SectionHead({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="flex items-baseline gap-3 mt-1 mb-3">
+      <h2 className="text-xs font-bold uppercase tracking-[0.06em] text-ink-2 whitespace-nowrap">{title}</h2>
+      {hint && <span className="text-[11.5px] text-ink-4 whitespace-nowrap">{hint}</span>}
+      <span className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
 // Cores do tema lidas dos tokens CSS (acompanham claro/escuro). Defaults = tema claro.
 const FALLBACK_COLORS = {
   accent: '#1a7a48',
@@ -287,6 +298,16 @@ export default function OrcamentoClient() {
     setChangedFilter(false);
   };
 
+  const indicadoresHint = summaryMonth
+    ? `posição de ${formatMonth(summaryMonth)} · ${summary.count} ${summary.count === 1 ? 'empenho' : 'empenhos'}${summaryFiltered ? ' · filtros aplicados' : ''}`
+    : 'sem dados';
+  const indicadores = [
+    { label: 'Empenhado', value: formatCompactCurrency(summary.emp), title: formatCurrency(summary.emp), sub: 'valor empenhado', accent: false },
+    { label: 'Liquidado', value: formatCompactCurrency(summary.liq), title: formatCurrency(summary.liq), sub: `${formatPercent(summary.execLiq)} do empenhado`, accent: false },
+    { label: 'Pago', value: formatCompactCurrency(summary.pag), title: formatCurrency(summary.pag), sub: `${formatPercent(summary.execPag)} do empenhado`, accent: false },
+    { label: 'Execução (pago)', value: formatPercent(summary.execPag), title: `${formatCurrency(summary.pag)} de ${formatCurrency(summary.emp)}`, sub: 'pago / empenhado', accent: true },
+  ];
+
   // Gráfico (evolução mensal) — respeita os filtros ativos e lê as cores dos tokens.
   const chartData = useMemo(() => {
     const labels = Array.from(new Set(filteredData.map(d => d.mesCode))).sort();
@@ -436,88 +457,69 @@ export default function OrcamentoClient() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <header className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] text-ink-3">
-            <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
-            <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
-            <span className="text-accent font-semibold whitespace-nowrap">Execução Orçamentária</span>
-            {refMonth && (
-              <>
-                <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
-                <span className="whitespace-nowrap">Dados de {formatMonth(refMonth)}</span>
-              </>
-            )}
+    <div className="min-h-full bg-bg text-ink pb-14">
+      {/* Top bar — mesmo padrão da tela de Estatística */}
+      <header className="sticky top-0 z-30 bg-surface border-b border-border">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] text-ink-3">
+              <span className="whitespace-nowrap">Tribunal Regional Eleitoral</span>
+              <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+              <span className="text-accent font-semibold whitespace-nowrap">Execução Orçamentária</span>
+              {refMonth && (
+                <>
+                  <span className="w-[3px] h-[3px] rounded-full bg-ink-4" />
+                  <span className="whitespace-nowrap">Dados de {formatMonth(refMonth)}</span>
+                </>
+              )}
+            </div>
+            <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
+              <BarChart3 size={20} className="text-accent shrink-0" />
+              Execução Orçamentária — Pleitos 2026
+            </h1>
           </div>
-          <h1 className="mt-0.5 text-2xl md:text-3xl font-bold tracking-tight">Execução Orçamentária — Pleitos 2026</h1>
-        </div>
-        <div className="shrink-0">
-          <input ref={fileInputRef} type="file" accept=".xlsx" hidden onChange={onFileChange} />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Atualizar dados a partir de uma nova planilha"
-            className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
-          >
-            <Upload size={14} /> <span className="hidden sm:inline">Atualizar dados</span>
-          </button>
+
+          <div className="flex items-center gap-2.5">
+            <input ref={fileInputRef} type="file" accept=".xlsx" hidden onChange={onFileChange} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Atualizar dados a partir de uma nova planilha"
+              className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
+            >
+              <Upload size={14} /> <span className="hidden sm:inline">Atualizar dados</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Indicadores-âncora — posição de um mês, respeitando os filtros */}
-      <section className="ds-card mb-8 overflow-hidden">
-        <div className="grid grid-cols-2 md:grid-cols-4">
-          <div className="px-4 py-4">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Empenhado</div>
-            <div className="mt-1 num text-lg font-bold text-ink" title={formatCurrency(summary.emp)}>
-              {formatCompactCurrency(summary.emp)}
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        {/* Indicadores */}
+        <SectionHead title="Indicadores" hint={indicadoresHint} />
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-7">
+          {indicadores.map((k) => (
+            <div key={k.label} className="relative ds-card p-[18px] overflow-hidden" title={k.title}>
+              <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">{k.label}</div>
+              <div className={`num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none ${k.accent ? 'text-accent' : 'text-ink'}`}>{k.value}</div>
+              <div className="mt-[7px] text-[11px] text-ink-4">{k.sub}</div>
             </div>
-          </div>
-          <div className="px-4 py-4 border-l border-border">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Liquidado</div>
-            <div className="mt-1 num text-lg font-bold text-ink-2" title={formatCurrency(summary.liq)}>
-              {formatCompactCurrency(summary.liq)}
-            </div>
-            <div className="mt-0.5 text-[11px] text-ink-4 num">{formatPercent(summary.execLiq)} do empenhado</div>
-          </div>
-          <div className="px-4 py-4 border-t border-border md:border-t-0 md:border-l md:border-border">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Pago</div>
-            <div className="mt-1 num text-lg font-bold text-ink-2" title={formatCurrency(summary.pag)}>
-              {formatCompactCurrency(summary.pag)}
-            </div>
-            <div className="mt-0.5 text-[11px] text-ink-4 num">{formatPercent(summary.execPag)} do empenhado</div>
-          </div>
-          <div className="px-4 py-4 border-l border-t border-border md:border-t-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Execução (Pago)</div>
-            <div
-              className="mt-1 num text-lg font-bold text-accent"
-              title={`${formatCurrency(summary.pag)} de ${formatCurrency(summary.emp)}`}
-            >
-              {formatPercent(summary.execPag)}
-            </div>
-          </div>
-        </div>
-        <div className="px-4 py-2 border-t border-border text-[11px] text-ink-3">
-          {summaryMonth ? <>Posição de <span className="num">{formatMonth(summaryMonth)}</span></> : 'Sem dados'}
-          {' · '}
-          <span className="num">{summary.count}</span> {summary.count === 1 ? 'empenho' : 'empenhos'}
-          {summaryFiltered && ' · filtros aplicados'}
-        </div>
-      </section>
+          ))}
+        </section>
 
-      {/* Gráfico */}
-      <section className="ds-card p-4 md:p-6 mb-8 h-[350px]">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-ink-3">Evolução Mensal (R$)</h2>
-          <BarChart3 size={16} className="text-ink-4" />
-        </div>
-        <div className="h-[280px]">
-          <Bar data={chartData} options={chartOptions} />
-        </div>
-      </section>
+        {/* Evolução mensal */}
+        <SectionHead title="Evolução mensal" hint="empenhado, liquidado e pago (R$)" />
+        <section className="ds-card p-4 md:p-6 mb-7">
+          <div className="h-[300px]">
+            <Bar data={chartData} options={chartOptions} />
+          </div>
+        </section>
 
-      {/* Filtros */}
-      <section className="ds-card p-4 mb-8">
+        {/* Empenhos */}
+        <SectionHead
+          title="Empenhos"
+          hint={`${tableRows.length} ${tableRows.length === 1 ? 'registro' : 'registros'}`}
+        />
+        <section className="ds-card p-4 mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="md:col-span-2">
             <label className="text-[10px] font-bold uppercase tracking-wider text-ink-3 mb-1.5 block">Buscar</label>
@@ -661,6 +663,7 @@ export default function OrcamentoClient() {
           </table>
         </div>
       </section>
+      </main>
 
       {/* Modal: importar/substituir dados */}
       {pendingFile && (
