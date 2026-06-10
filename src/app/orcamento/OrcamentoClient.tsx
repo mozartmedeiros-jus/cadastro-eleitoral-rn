@@ -614,7 +614,7 @@ export default function OrcamentoClient() {
               }`}
             >
               {showSuplementar ? <EyeOff size={14} /> : <Eye size={14} />}
-              {showSuplementar ? 'Ocultar eleição suplementar' : 'Mostrar eleição suplementar'}
+              {showSuplementar ? 'Ocultar ELEIÇÃO SUPLEMENTAR' : 'Mostrar ELEIÇÃO SUPLEMENTAR'}
             </button>
           </div>
           {!isDefaultView && (
