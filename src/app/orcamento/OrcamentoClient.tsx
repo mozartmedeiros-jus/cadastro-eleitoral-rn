@@ -11,7 +11,8 @@ import {
   AlertCircle,
   AlertTriangle,
   Upload,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import {
   collection,
@@ -100,6 +101,18 @@ function formatMonth(mesCode: string) {
 // Tamanho máximo por lote do Firestore client SDK
 const BATCH_LIMIT = 500;
 
+// Direção da variação de um valor em relação ao mês anterior da mesma NE.
+type VarDir = 'up' | 'down' | null;
+function varDir(curr: number, prev?: number): VarDir {
+  if (prev === undefined || curr === prev) return null;
+  return curr > prev ? 'up' : 'down';
+}
+function VarArrow({ dir }: { dir: VarDir }) {
+  if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou em relação ao mês anterior" />;
+  if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu em relação ao mês anterior" />;
+  return null;
+}
+
 // Cores do tema lidas dos tokens CSS (acompanham claro/escuro). Defaults = tema claro.
 const FALLBACK_COLORS = {
   accent: '#1a7a48',
@@ -119,6 +132,7 @@ export default function OrcamentoClient() {
   const [mesFilter, setMesFilter] = useState<string>('all');
   const [natFilter, setNatFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [changedFilter, setChangedFilter] = useState(false);
   const defaultSelectedRef = useRef(false);
 
   // Import de novo .xlsx (substitui todos os dados)
@@ -200,7 +214,7 @@ export default function OrcamentoClient() {
       d.fornecedores.toLowerCase().includes(term);
   }, [search]);
 
-  // Dados filtrados (tabela e gráfico)
+  // Dados filtrados (gráfico e base da tabela)
   const filteredData = useMemo(() => {
     return data.filter(d => {
       const matchMes = mesFilter === 'all' || d.mesCode === mesFilter;
@@ -208,6 +222,41 @@ export default function OrcamentoClient() {
       return matchMes && matchNat && matchesText(d);
     });
   }, [data, mesFilter, natFilter, matchesText]);
+
+  // Mês imediatamente anterior de cada NE (base da sinalização de variação).
+  const prevByDocId = useMemo(() => {
+    const groups = new Map<string, Empenho[]>();
+    for (const d of data) {
+      const arr = groups.get(d.notaEmpenho);
+      if (arr) arr.push(d);
+      else groups.set(d.notaEmpenho, [d]);
+    }
+    const map = new Map<string, Empenho | undefined>();
+    for (const arr of groups.values()) {
+      arr.sort((a, b) => a.mesCode.localeCompare(b.mesCode));
+      arr.forEach((d, i) => map.set(d.id, i > 0 ? arr[i - 1] : undefined));
+    }
+    return map;
+  }, [data]);
+
+  const hasAnyChange = useMemo(
+    () => (d: Empenho) => {
+      const p = prevByDocId.get(d.id);
+      return (
+        !!p &&
+        (d.despesasEmpenhadas !== p.despesasEmpenhadas ||
+          d.despesasLiquidadas !== p.despesasLiquidadas ||
+          d.despesasPagas !== p.despesasPagas)
+      );
+    },
+    [prevByDocId],
+  );
+
+  // Linhas da tabela: aplica o filtro "apenas com alteração" (não afeta gráfico/indicadores).
+  const tableRows = useMemo(
+    () => (changedFilter ? filteredData.filter(hasAnyChange) : filteredData),
+    [filteredData, changedFilter, hasAnyChange],
+  );
 
   // Indicadores-âncora: posição de UM mês (o filtrado, ou a referência quando "todos"),
   // respeitando natureza e busca. Nunca somar entre meses — os snapshots são cumulativos.
@@ -225,7 +274,18 @@ export default function OrcamentoClient() {
     return { emp, liq, pag, count: rows.length, execLiq: emp ? liq / emp : 0, execPag: emp ? pag / emp : 0 };
   }, [data, summaryMonth, natFilter, matchesText]);
 
-  const isFiltered = mesFilter !== 'all' || natFilter !== 'all' || search.trim() !== '';
+  const summaryFiltered = natFilter !== 'all' || search.trim() !== '';
+
+  // Estado "padrão" da tela (mês de referência, sem filtros secundários) → controla o botão Limpar.
+  const defaultMonth = refMonth ?? 'all';
+  const isDefaultView =
+    mesFilter === defaultMonth && natFilter === 'all' && search.trim() === '' && !changedFilter;
+  const clearFilters = () => {
+    setMesFilter(defaultMonth);
+    setNatFilter('all');
+    setSearch('');
+    setChangedFilter(false);
+  };
 
   // Gráfico (evolução mensal) — respeita os filtros ativos e lê as cores dos tokens.
   const chartData = useMemo(() => {
@@ -441,7 +501,7 @@ export default function OrcamentoClient() {
           {summaryMonth ? <>Posição de <span className="num">{formatMonth(summaryMonth)}</span></> : 'Sem dados'}
           {' · '}
           <span className="num">{summary.count}</span> {summary.count === 1 ? 'empenho' : 'empenhos'}
-          {isFiltered && ' · filtros aplicados'}
+          {summaryFiltered && ' · filtros aplicados'}
         </div>
       </section>
 
@@ -505,6 +565,30 @@ export default function OrcamentoClient() {
             </div>
           </div>
         </div>
+
+        <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setChangedFilter(v => !v)}
+            aria-pressed={changedFilter}
+            className={`inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border text-[12.5px] font-medium transition-colors ${
+              changedFilter
+                ? 'bg-accent-soft border-accent-soft-border text-accent'
+                : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
+            }`}
+          >
+            <Filter size={14} /> Apenas com alteração no mês
+          </button>
+          {!isDefaultView && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[12.5px] font-medium hover:bg-surface-3 hover:text-ink transition-colors"
+            >
+              <X size={14} /> Limpar filtros
+            </button>
+          )}
+        </div>
       </section>
 
       {/* Tabela */}
@@ -523,11 +607,12 @@ export default function OrcamentoClient() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-faint text-sm">
-              {filteredData.map((d) => {
-                // Cálculo de variação simples (exemplo: se for NE igual no mês anterior)
-                const prev = data.find(p => p.notaEmpenho === d.notaEmpenho && p.mesCode < d.mesCode);
-                const hasVariation = prev && (d.despesasEmpenhadas !== prev.despesasEmpenhadas);
-                const increased = prev && d.despesasEmpenhadas > prev.despesasEmpenhadas;
+              {tableRows.map((d) => {
+                // Variação vs. mês imediatamente anterior da mesma NE, por coluna.
+                const prev = prevByDocId.get(d.id);
+                const empDir = varDir(d.despesasEmpenhadas, prev?.despesasEmpenhadas);
+                const liqDir = varDir(d.despesasLiquidadas, prev?.despesasLiquidadas);
+                const pagDir = varDir(d.despesasPagas, prev?.despesasPagas);
 
                 return (
                   <tr key={d.id} className="row-hover">
@@ -547,23 +632,25 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <span className="font-bold text-ink num">{formatCurrency(d.despesasEmpenhadas)}</span>
-                        {hasVariation && (
-                          increased ?
-                            <TrendingUp size={14} className="text-accent" /> :
-                            <TrendingDown size={14} className="text-danger" />
-                        )}
+                        <VarArrow dir={empDir} />
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-right num text-ink-2">
-                      {formatCurrency(d.despesasLiquidadas)}
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="num text-ink-2">{formatCurrency(d.despesasLiquidadas)}</span>
+                        <VarArrow dir={liqDir} />
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-right num text-ink-2">
-                      {formatCurrency(d.despesasPagas)}
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="num text-ink-2">{formatCurrency(d.despesasPagas)}</span>
+                        <VarArrow dir={pagDir} />
+                      </div>
                     </td>
                   </tr>
                 );
               })}
-              {filteredData.length === 0 && (
+              {tableRows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-ink-4 italic">
                     Nenhum empenho encontrado para os filtros aplicados.
