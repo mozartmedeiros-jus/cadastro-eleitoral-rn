@@ -1,43 +1,92 @@
-# Roadmap — Dashboard de Execução Orçamentária (Pleitos) no Firebase
+# Roadmap — cadastro-eleitoral-rn
 
 > **Documento de acompanhamento canônico (versionado no git).**
-> Em uma sessão nova, leia o **Preâmbulo** (todo o ambiente) e a **Tabela de fases** (o que já foi
-> feito) antes de continuar. Atualize o status e o **Log de execução** ao concluir cada etapa.
+> Em uma sessão nova, leia o **Preâmbulo Compartilhado** (infra comum) e depois a seção da frente
+> em que vai trabalhar. Atualize o **Log de execução** da frente correspondente ao concluir.
 >
 > Legenda de status: `[ ]` pendente · `[~]` em andamento · `[x]` concluída · `[!]` bloqueada.
 
 ---
 
-## PREÂMBULO — Ambiente (ler primeiro numa sessão nova)
-
-**Objetivo do projeto.** Migrar o acompanhamento de execução orçamentária de "Pleitos Eleitorais 2026"
-do antigo pipeline (planilha Google + Apps Script + Looker + CSV publicado) para o **Firebase já
-existente** do app de cadastro eleitoral. O projeto antigo está **abandonado**.
+## PREÂMBULO COMPARTILHADO — Ambiente (ler primeiro numa sessão nova)
 
 **Caminhos no disco**
-- App alvo (Next.js + Firebase): `/home/mozdam/Documents/AppsScript_Projeto/Empresa/ELO/cadastro-eleitoral-rn`
-- Fonte de dados (planilha exportada): `/home/mozdam/Documents/AppsScript_Projeto/Empresa/Orçamento2026/TRE - RN - EXECUÇÃO (EMP_LIQ_PAGO) - por NE - PLEITOS ELEITORAIS - 2026.xlsx`
-- Projeto antigo (abandonado, só referência): `/home/mozdam/Documents/AppsScript_Projeto/Empresa/Orçamento2026/` (Apps Script: `ProcessadorDeDados.js`, `novoDanboard.html`)
+- App (Next.js + Firebase): `/home/mozdam/Documents/AppsScript_Projeto/Empresa/ELO/cadastro-eleitoral-rn`
+- Este roadmap: `docs/ROADMAP.md`
 
 **Firebase / GCP**
 - Projeto: **`eleicoes2026-dadoszonas`** (`.firebaserc`).
 - Config web em `.env.local` (NEXT_PUBLIC_FIREBASE_*); **não** commitado (`.gitignore` cobre `.env*`).
 - Hosting: export estático Next.js (`next.config.ts` → `output: "export"`; `firebase.json` → `public: out`).
+- Produção: **https://eleicoes2026-dadoszonas.web.app**
 - Stack: Next.js 16, React 19, Tailwind v4 (`@theme inline`), `firebase ^12`.
 
-**Auth e autorização (reuso)**
+**Auth e autorização**
 - Login Google via `src/lib/AuthContext.tsx` (`useAuth()`), botão `src/components/AuthButton.tsx`.
 - Allow-list em `src/lib/firebase.ts` (`ADMIN_EMAILS` / `isAdmin()`) e espelhada em `firestore.rules`
   (`isAuthorizedAdmin()`): **karina.pedrosa, monica.paim, mozart.medeiros @tre-rn.jus.br** (email_verified).
-- Leitura do orçamento é **restrita a esses 3 admins**.
 
 **Firestore — convenção de coleções** (`<domínio>_<entidade>`, minúsculo)
-- `cad_` → Cadastro Eleitoral (migração **futura**; hoje as coleções são `mrj`, `agregacoes`, `ciclos`).
-- `opl_` → Orçamento de **Pleitos** eleitorais (**foco atual**).
+- `cad_` → Cadastro Eleitoral (prefixo **futuro**; hoje as coleções são `mrj`, `agregacoes`, `ciclos`).
+- `opl_` → Orçamento de **Pleitos** eleitorais.
 - `oor_` → Orçamento **Ordinário** (futuro).
 
-**Coleção atual: `opl_empenhos`** (formato long, 1 doc por NE × mês). Doc ID `${mesCode}__${notaEmpenho}`
-(ex.: `2026-01__070008000012026NE000061`). Campos espelham o cabeçalho do CSV publicado, confirmado:
+**Estrutura de rotas**
+- Route groups `src/app/(cadastro)/` (→ `/`, `/agregacoes/*`) e `src/app/(orcamento)/orcamento/`
+  (→ `/orcamento`). Os grupos não entram na URL.
+- Núcleo compartilhado: `src/lib/`, `src/components/`, `src/app/layout.tsx`, `src/app/globals.css`.
+
+**Padrão visual obrigatório** — `_arquivos/DESIGN.md` + `_arquivos/PRODUCT.md` (DSGov / "Cartório Digital"):
+superfícies planas, bordas 1px, **verde eleitoral `#1a7a48` em ≤10% da tela** (só ação/estado), zero
+gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/escuro por **tokens**
+(`bg-surface`, `text-ink-2`, `border-border`, `accent-*`) — nunca hex no JSX. Classes prontas no
+`globals.css`: `.ds-card`, `.ds-input`, `.ds-select`, `.ds-num`, `.num`, `.row-hover`.
+
+---
+
+## FRENTE A — Cadastro Eleitoral
+
+> Esta frente não teve roadmap formal. O estado abaixo é documentado a partir do código atual.
+
+### Estado atual
+
+| Rota | Componente principal | Acesso |
+|---|---|---|
+| `/` | `(cadastro)/page.tsx` → `CadastroClient.tsx` | público |
+| `/agregacoes` | `AgregacoesOverview.tsx` / `AgregacoesClient.tsx` | público (eleitores por seção); SPLE (agregações) |
+| `/agregacoes/ciclos` | `CiclosClient.tsx` | SPLE |
+| `/agregacoes/analise` | `analise/page.tsx` | SPLE |
+
+**Dados**
+- Firestore: coleções `mrj`, `agregacoes`, `ciclos` (prefixo `cad_` planejado para migração futura).
+- JSON estático: `data/cadastro_eleitoral.json`, `data/meta.json` — importados via alias `@data/*`
+  (`tsconfig.json`).
+
+**Pendências conhecidas**
+- `[ ]` Migração das coleções para prefixo `cad_` (futura, sem prazo).
+- `[ ]` Critique de UI em `src/app/(cadastro)/agregacoes/analise/page.tsx` (próximo `/impeccable`).
+
+### Log de execução (Cadastro)
+
+*(Sem histórico anterior a este roadmap — entradas futuras a partir daqui.)*
+
+---
+
+## FRENTE B — Orçamento (Pleitos)
+
+### Objetivo
+
+Migrar o acompanhamento de execução orçamentária de "Pleitos Eleitorais 2026" do antigo pipeline
+(planilha Google + Apps Script + Looker + CSV publicado) para o **Firebase já existente** do app de
+cadastro eleitoral. O projeto antigo está **abandonado**.
+
+**Caminhos específicos desta frente**
+- Fonte de dados: `/home/mozdam/Documents/AppsScript_Projeto/Empresa/Orçamento2026/TRE - RN - EXECUÇÃO (EMP_LIQ_PAGO) - por NE - PLEITOS ELEITORAIS - 2026.xlsx`
+- Projeto antigo (só referência): `/home/mozdam/Documents/AppsScript_Projeto/Empresa/Orçamento2026/`
+  (Apps Script: `ProcessadorDeDados.js`, `novoDanboard.html`)
+
+**Coleção `opl_empenhos`** (formato long, 1 doc por NE × mês). Doc ID `${mesCode}__${notaEmpenho}`
+(ex.: `2026-01__070008000012026NE000061`). Campos espelham o cabeçalho do CSV publicado:
 `REFERÊNCIA, PTRES, PLANO ORÇAMENTÁRIO, NOTA DE EMPENHO, PLANO INTEGRADO, DESCRIÇÃO, NATUREZA DESPESA,
 PROCESSO SEI, FORNECEDORES, DESPESAS EMPENHADAS, DESPESAS LIQUIDADAS, DESPESAS PAGAS`.
 - Campos: `referencia` (Timestamp, 1º dia do mês), `ptres` (number), `planoOrcamentario`, `notaEmpenho`,
@@ -45,11 +94,6 @@ PROCESSO SEI, FORNECEDORES, DESPESAS EMPENHADAS, DESPESAS LIQUIDADAS, DESPESAS P
   `despesasEmpenhadas/Liquidadas/Pagas` (number; vazio → 0).
 - Auxiliares (não-CSV): `ano` (number), `mesCode` (`"2026-01"`), `updatedAt`. Multi-ano por campo `ano`.
 
-**Padrão visual obrigatório** — `_arquivos/DESIGN.md` + `_arquivos/PRODUCT.md` (DSGov / "Cartório Digital"):
-superfícies planas, bordas 1px, **verde eleitoral `#1a7a48` em ≤10% da tela** (só ação/estado), zero
-gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/escuro por **tokens**
-(`bg-surface`, `text-ink-2`, `border-border`, `accent-*`) — nunca hex no JSX. Classes prontas no
-`globals.css`: `.ds-card`, `.ds-input`, `.ds-select`, `.ds-num`, `.num`, `.row-hover`.
 **`novoDanboard.html` é anti-referência visual** (azul, gradientes, pills): reusar só a *lógica*
 (filtros, variação mês-a-mês via `prevData`, gráficos).
 
@@ -60,9 +104,7 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 4. Coleção `opl_empenhos`, campos pelo cabeçalho do CSV, multi-ano por campo `ano`.
 5. Projeto Sheets/Apps Script/Looker **abandonado**.
 
----
-
-## TABELA DE FASES (status)
+### Tabela de fases
 
 | Fase | Descrição | Status |
 |---|---|---|
@@ -74,19 +116,17 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 > **Fase 3 concluída:** `firestore:rules` e **hosting** deployados em produção
 > (`https://eleicoes2026-dadoszonas.web.app`).
 
----
-
-## FASE 0 — Pré-requisitos `[ ]`
+### Fase 0 — Pré-requisitos `[x]`
 
 1. **Service account** do projeto `eleicoes2026-dadoszonas` (Console GCP/Firebase → IAM → Contas de
-   serviço → gerar chave JSON), salva como `scripts/serviceAccountKey.json` (**gitignored**).
+   serviço → gerar chave JSON), salva como `scripts/orcamento/serviceAccountKey.json` (**gitignored**).
 2. Confirmar que os e-mails que vão **ver** o painel estão na allow-list (`ADMIN_EMAILS`).
 3. Instalar deps: `firebase-admin`, `xlsx` (ingestão) e `chart.js` (página) — `npm install`.
 
-## FASE 1 — Banco de dados `[ ]`
+### Fase 1 — Banco de dados `[x]`
 
-### 1a. Regras — `firestore.rules`
-Adicionar antes do catch-all `match /{document=**}`, reusando `isAuthorizedAdmin()`:
+#### 1a. Regras — `firestore.rules`
+Adicionado antes do catch-all `match /{document=**}`, reusando `isAuthorizedAdmin()`:
 ```
 match /opl_empenhos/{docId} {
   allow read:  if isAuthorizedAdmin();   // só os 3 admins
@@ -94,7 +134,7 @@ match /opl_empenhos/{docId} {
 }
 ```
 
-### 1b. Script de ingestão — `scripts/upload-orcamento.mjs`
+#### 1b. Script de ingestão — `scripts/orcamento/upload.mjs`
 Replica fielmente o pipeline Apps Script de **duas etapas** e envia ao Firestore.
 
 **Etapa 1 — Extração mensal** (= `extrairDadosComMesclados`). Aba 0, dados a partir da **linha 11**
@@ -109,21 +149,17 @@ Replica fielmente o pipeline Apps Script de **duas etapas** e envia ao Firestore
 **Etapa 2 — Consolidação** (= `=QUERY({...12 abas A2:L}; "SELECT * WHERE Col2 IS NOT NULL ORDER BY Col1 ASC")`):
 une os 12 blocos, descarta linhas com **PTRES (Col2) vazio**, ordena por **referência (Col1) ASC**.
 
-**Etapa 3 — Envio** a `opl_empenhos` (mapeamento de campos do Preâmbulo). Doc ID `${mesCode}__${notaEmpenho}`;
+**Etapa 3 — Envio** a `opl_empenhos` (mapeamento de campos acima). Doc ID `${mesCode}__${notaEmpenho}`;
 gravar com `writeBatch` (lotes ≤500), `set` merge.
 
-**Operação**: credencial via `GOOGLE_APPLICATION_CREDENTIALS` ou `scripts/serviceAccountKey.json`;
+**Operação**: credencial via `GOOGLE_APPLICATION_CREDENTIALS` ou `scripts/orcamento/serviceAccountKey.json`;
 caminho do `.xlsx` e `ano` parametrizáveis; flag `--csv` opcional emite o CSV consolidado p/ conferir
-contra o publicado. npm script: `"upload:orcamento": "node scripts/upload-orcamento.mjs"`.
-Adicionar `scripts/serviceAccountKey.json` ao `.gitignore`.
+contra o publicado. npm scripts: `upload:orcamento` e `validar:orcamento`.
 
-## FASE 2 — Página `/orcamento` (DSGov) `[ ]`
+### Fase 2 — Página `/orcamento` (DSGov) `[x]`
 
-> Reaproveita só a **lógica** do `novoDanboard.html`; **visual reconstruído** nos tokens de `globals.css`,
-> espelhando `/` e `/agregacoes`. Hex no JSX é proibido.
-
-- `src/app/orcamento/page.tsx` — server component mínimo → `<OrcamentoClient />`.
-- `src/app/orcamento/OrcamentoClient.tsx` — `'use client'`:
+- `src/app/(orcamento)/orcamento/page.tsx` — server component mínimo → `<OrcamentoClient />`.
+- `src/app/(orcamento)/orcamento/OrcamentoClient.tsx` — `'use client'`:
   - **Auth gate**: `useAuth()`; `!user` → CTA login; logado não-admin (`isAdmin`) → "Acesso restrito";
     só consulta Firestore quando admin.
   - **Dados**: `getDocs(collection(db, 'opl_empenhos'))`; filtro/ordenação client-side.
@@ -133,43 +169,40 @@ Adicionar `scripts/serviceAccountKey.json` ao `.gitignore`.
   - **Gráficos**: `chart.js` em `useEffect`; barras **sólidas chapadas** (`--accent` + neutros), sem
     fills `rgba`/gradiente/glow; cores lidas dos tokens via `getComputedStyle` (acompanha tema);
     respeitar `prefers-reduced-motion`. **Sem hero-metric** de KPI gigante — indicadores compactos.
-- `src/components/Sidebar.tsx`: item `{ name: 'Execução Orçamentária', href: '/orcamento', icon: <Lucide>, sub: false, authRequired: true }`.
+- `src/components/Sidebar.tsx`: item `Execução Orçamentária` → `/orcamento`, grupo `sple`, `authRequired: true`.
 
-## FASE 3 — Deploy `[ ]`
+### Fase 3 — Deploy `[x]`
 
-- `firebase deploy --only firestore:rules` (validar no simulador: read só admin).
+- `firebase deploy --only firestore:rules` (validado no simulador: read só admin).
 - `npm run build` (export estático) → `firebase deploy --only hosting`.
 
----
-
-## Arquivos a criar/alterar (todos em `cadastro-eleitoral-rn`)
+### Arquivos criados/alterados
 
 | Ação | Arquivo | Fase |
 |---|---|---|
-| criar | `docs/orcamento/ROADMAP.md` (este documento) | 0 |
-| criar | `scripts/orcamento/upload.mjs` | 1 |
-| editar | `firestore.rules` (bloco `opl_empenhos`) | 1 |
-| editar | `.gitignore` (`scripts/orcamento/serviceAccountKey.json`) | 1 |
-| editar | `package.json` (deps + script `upload:orcamento`) | 0/1 |
-| criar | `src/app/(orcamento)/orcamento/page.tsx` | 2 |
-| criar | `src/app/(orcamento)/orcamento/OrcamentoClient.tsx` | 2 |
-| editar | `src/components/Sidebar.tsx` (item de nav) | 2 |
+| criado | `docs/ROADMAP.md` (este documento) | — |
+| criado | `scripts/orcamento/upload.mjs` | 1 |
+| criado | `scripts/orcamento/validar.mjs` | 1 |
+| editado | `firestore.rules` (bloco `opl_empenhos`) | 1 |
+| editado | `.gitignore` (`scripts/orcamento/serviceAccountKey.json`) | 1 |
+| editado | `package.json` (deps + scripts `upload:orcamento`, `validar:orcamento`) | 0/1 |
+| criado | `src/app/(orcamento)/orcamento/page.tsx` | 2 |
+| criado | `src/app/(orcamento)/orcamento/OrcamentoClient.tsx` | 2 |
+| editado | `src/components/Sidebar.tsx` (item de nav) | 2 |
 
 Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/components/AuthButton.tsx`,
 `firebase.json`, `globals.css` (tokens/classes).
 
-## Verificação (end-to-end)
+### Verificação (end-to-end)
 
 1. `npm install` (firebase-admin, xlsx, chart.js).
-2. `npm run upload:orcamento` → ~960 docs em `opl_empenhos` no console do Firestore (conferir com `--csv`).
+2. `npm run upload:orcamento` → 666 docs em `opl_empenhos` no console do Firestore (conferir com `--csv`).
 3. `firebase deploy --only firestore:rules` → simulador: leitura só admin.
 4. `npm run dev` → logar como admin → `/orcamento`: filtros, tabela com setas, gráficos OK.
 5. Não-admin / deslogado → bloqueado (e leitura negada pelas rules).
 6. `npm run build` sem erros → `firebase deploy --only hosting`.
 
----
-
-## LOG DE EXECUÇÃO (anote ao concluir cada etapa)
+### Log de execução (Orçamento)
 
 - **2026-06-10**: Fase 0 e 1 concluídas.
   - Dependências instaladas (`firebase-admin`, `xlsx`, `chart.js`, `react-chartjs-2`).
@@ -215,9 +248,13 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
   - **Scripts:** movidos para `scripts/orcamento/{upload,validar}.mjs` + chave gitignored junto
     (`join(__dirname,...)` resolve sem mudar código); `.gitignore` e `package.json` atualizados;
     novo npm script `validar:orcamento`.
-  - **Docs:** este roadmap movido de `ROADMAP_ORCAMENTO.md` (raiz) → `docs/orcamento/ROADMAP.md`.
+  - **Docs:** roadmap movido de `ROADMAP_ORCAMENTO.md` (raiz) → `docs/orcamento/ROADMAP.md`.
   - **Núcleo compartilhado** (`src/lib`, `src/components`) inalterado.
   - **Verificação:** `npm run build` OK (rotas e `out/` idênticos; route groups não vazam para o
     output). Redeploy `firebase deploy --only hosting` (94 arquivos) e verificação em produção
     logado como admin — **funcionando**.
   - **Git:** integrado à `main` via PR #4 (merge `654be52`); branches de feature removidas.
+- **2026-06-11 (reorganização do roadmap)**: `docs/orcamento/ROADMAP.md` movido para `docs/ROADMAP.md`
+  e reestruturado em **Preâmbulo Compartilhado + Frente A (Cadastro) + Frente B (Orçamento)**.
+  Conteúdo de orçamento preservado integralmente. Frente Cadastro documentada pela primeira vez
+  (factual, a partir do código). Comando `/iniciar` atualizado para o novo caminho.

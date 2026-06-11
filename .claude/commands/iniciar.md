@@ -56,8 +56,9 @@ git remote -v
   Proíba push/PR até a conta certa estar ativa. **Não** bloqueia build/deploy.
 
 ## 6. Carregar contexto do projeto
-- Leia `docs/orcamento/ROADMAP.md` — documento **canônico**: **Preâmbulo** (todo o ambiente),
-  **Tabela de fases** (o que já foi feito) e o final do **Log de execução**.
+- Leia `docs/ROADMAP.md` — documento **canônico**: **Preâmbulo Compartilhado** (todo o ambiente),
+  **Frente A — Cadastro** (estado atual + pendências) e **Frente B — Orçamento** (tabela de fases
+  + log). Leia o final do **Log de execução** de cada frente para ver o que foi feito por último.
 - **Não** use o `README.md` como contexto: é o boilerplate do create-next-app (não reflete o projeto).
 - Reporte em 2-3 linhas: estado de produção (`https://eleicoes2026-dadoszonas.web.app`) + qual a
   próxima frente/pendência sugerida para esta sessão.
@@ -77,7 +78,7 @@ eixos de bloqueio (eles são independentes):
 - Se nenhum bloqueador ativo, resuma em uma linha: `✓ tudo ok` ou `⚠️ <atenção não-bloqueante>`
   (ex.: `package-lock` mudou → sugerir `npm install`).
 
-> **Nota (fim de sessão):** ao encerrar, atualize o **Log de execução** de `docs/orcamento/ROADMAP.md`
-> com o que foi feito. Material de desenvolvimento/arquivado fica em `_arquivos/` (local). Ao mergear
-> PRs, só apague a branch depois de confirmar `state: MERGED` via `gh` (apagar a branch de um PR
-> aberto o fecha sem merge).
+> **Nota (fim de sessão):** ao encerrar, atualize o **Log de execução** da frente correspondente
+> em `docs/ROADMAP.md` com o que foi feito (Frente A para cadastro, Frente B para orçamento).
+> Material de desenvolvimento/arquivado fica em `_arquivos/` (local). Ao mergear PRs, só apague a
+> branch depois de confirmar `state: MERGED` via `gh` (apagar a branch de um PR aberto o fecha sem merge).
