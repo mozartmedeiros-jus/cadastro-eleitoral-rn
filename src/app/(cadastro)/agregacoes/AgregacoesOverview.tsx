@@ -308,9 +308,10 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                     ? (isCapital ? ciclo.capitalLimit : ciclo.interiorLimit)
                     : null;
                   const isExpanded = expandedRowId === rowId;
+                  const isDanger = cicloFields?.agregar === true && cicloFields?.total === 0;
                   return (
                     <>
-                      <tr key={rowId} className={`border-b border-border-faint transition-colors ${isExpanded ? 'bg-accent-soft' : 'hover:bg-surface-2'}`}>
+                      <tr key={rowId} className={`border-b border-border-faint transition-colors ${isDanger ? 'bg-danger-soft' : isExpanded ? 'bg-accent-soft' : 'hover:bg-surface-2'}`}>
                         <td className="px-2 py-3 text-center">
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : rowId)}

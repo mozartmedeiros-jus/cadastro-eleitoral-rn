@@ -114,25 +114,18 @@ export default function Sidebar() {
                         : pathname.startsWith(item.href);
                   const Icon = item.icon;
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => {
-                        setOpen(false);
-                        if (item.href === '/agregacoes') setAgregOpen(item.group === 'sple');
-                      }}
-                      className={`
-                        relative flex items-center gap-[11px]
-                        ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
-                        rounded-[var(--radius-ds-md)] mb-[3px]
-                        font-medium border transition-colors duration-[120ms]
-                        ${active
-                          ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-soft-border)] font-semibold'
-                          : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
-                        }
-                      `}
-                    >
+                  const sharedClass = `
+                    relative flex items-center gap-[11px] w-full text-left
+                    ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
+                    rounded-[var(--radius-ds-md)] mb-[3px]
+                    font-medium border transition-colors duration-[120ms]
+                    ${active
+                      ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-soft-border)] font-semibold'
+                      : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
+                    }
+                  `;
+                  const sharedContent = (
+                    <>
                       <Icon
                         size={item.sub ? 15 : 18}
                         className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
@@ -147,6 +140,29 @@ export default function Sidebar() {
                       {active && (
                         <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent)] rounded-r-[3px]" />
                       )}
+                    </>
+                  );
+
+                  if (isAgregSple) {
+                    return (
+                      <button
+                        key="agregacoes-toggle"
+                        onClick={() => setAgregOpen(v => !v)}
+                        className={sharedClass}
+                      >
+                        {sharedContent}
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={sharedClass}
+                    >
+                      {sharedContent}
                     </Link>
                   );
                 })}
