@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
-import meta from '../../data/meta.json';
+import meta from '@data/meta.json';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;

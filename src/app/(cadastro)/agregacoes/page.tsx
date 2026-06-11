@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import AgregacoesOverview from './AgregacoesOverview';
-import data from '../../../data/cadastro_eleitoral.json';
+import data from '@data/cadastro_eleitoral.json';
 
 export const metadata = {
   title: 'Eleitorado — Cadastro Eleitoral RN',

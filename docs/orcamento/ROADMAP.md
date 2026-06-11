@@ -146,13 +146,13 @@ Adicionar `scripts/serviceAccountKey.json` ao `.gitignore`.
 
 | Ação | Arquivo | Fase |
 |---|---|---|
-| criar | `ROADMAP_ORCAMENTO.md` (raiz — este documento) | 0 |
-| criar | `scripts/upload-orcamento.mjs` | 1 |
+| criar | `docs/orcamento/ROADMAP.md` (este documento) | 0 |
+| criar | `scripts/orcamento/upload.mjs` | 1 |
 | editar | `firestore.rules` (bloco `opl_empenhos`) | 1 |
-| editar | `.gitignore` (`scripts/serviceAccountKey.json`) | 1 |
+| editar | `.gitignore` (`scripts/orcamento/serviceAccountKey.json`) | 1 |
 | editar | `package.json` (deps + script `upload:orcamento`) | 0/1 |
-| criar | `src/app/orcamento/page.tsx` | 2 |
-| criar | `src/app/orcamento/OrcamentoClient.tsx` | 2 |
+| criar | `src/app/(orcamento)/orcamento/page.tsx` | 2 |
+| criar | `src/app/(orcamento)/orcamento/OrcamentoClient.tsx` | 2 |
 | editar | `src/components/Sidebar.tsx` (item de nav) | 2 |
 
 Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/components/AuthButton.tsx`,
