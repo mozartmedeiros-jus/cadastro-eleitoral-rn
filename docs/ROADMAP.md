@@ -90,6 +90,12 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
   - Fundo da área ao redor da tabela: branco (removido `bg-surface-2` do `<td>` externo);
     linhas internas da tabela: `bg-surface-2`; cabeçalho interno: `bg-surface-3` (mantido).
   - Mesmos ajustes (PT-BR, aria, motion-reduce, w-fit) replicados em `CiclosClient.tsx`.
+- **2026-06-11 (correções de interação e alerta visual)**: dois fixes na `/agregacoes`.
+  - `AgregacoesOverview`: linha fica `bg-danger-soft` (vermelho) quando ciclo marca
+    `agregar=true` e `total=0`; linha expandida de estatísticas mantém fundo branco.
+  - `Sidebar`: item "Agregações" (grupo SPLE) convertido de `<Link>` para `<button>` de
+    toggle — impedia abrir o submenu ao clicar estando já em `/agregacoes` (navegação
+    para mesma URL resetava o estado React do accordion).
 
 ---
 
