@@ -63,6 +63,18 @@ git remote -v
 - Reporte em 2-3 linhas: estado de produção (`https://eleicoes2026-dadoszonas.web.app`) + qual a
   próxima frente/pendência sugerida para esta sessão.
 
+## 7. Sistema de design (obrigatório antes de criar qualquer página ou componente)
+- Leia `DESIGN.md` e `PRODUCT.md` na raiz do projeto **antes** de criar ou editar qualquer rota,
+  página ou componente de UI. Esses arquivos são a referência primária do sistema visual.
+- `PRODUCT.md` define quem é o usuário, o propósito do produto, a personalidade da marca e as
+  **anti-referências** (o que está explicitamente proibido). Use-o para decidir *o quê* construir
+  e *como* escrever a copy.
+- `DESIGN.md` define tokens de cor, escala tipográfica, elevação e especificação de componentes.
+  Use-o para decidir *como* estruturar e estilizar. Nunca escreva hex no JSX — use os tokens.
+- 🔴 **BLOQUEADOR (UI)** — criar página ou componente sem ler esses dois arquivos é proibido.
+  A skill `/impeccable` lê-os automaticamente no setup; fora dela, a leitura é responsabilidade
+  de quem executa a tarefa.
+
 ---
 
 ## Veredito final

@@ -64,7 +64,7 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 **Pendências conhecidas**
 - `[ ]` Migração das coleções para prefixo `cad_` (futura, sem prazo).
-- `[ ]` Critique de UI em `src/app/(cadastro)/agregacoes/analise/page.tsx` (próximo `/impeccable`).
+- `[x]` Critique de UI em `src/app/(cadastro)/agregacoes/analise/page.tsx` (`/impeccable critique` — resolvido).
 
 ### Log de execução (Cadastro)
 
@@ -264,7 +264,7 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ---
 
-## FRENTE B — Orçamento Pleitos - Gestão SPLE
+## FRENTE C — Orçamento Pleitos - Gestão SPLE
 
 > Estudo preliminar concluído. Nenhuma fase implementada.
 
