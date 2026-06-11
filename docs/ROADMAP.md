@@ -80,6 +80,16 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
   - `AgregacoesOverview.tsx` (`/agregacoes`): mesma dinâmica de expand aplicada à tabela principal —
     ChevronDown em todas as linhas, disponível com ou sem ciclo selecionado.
   - Build e deploy em produção validados (`https://eleicoes2026-dadoszonas.web.app`).
+- **2026-06-11 (refinamentos visuais — tabela de estatísticas)**: ajustes pós-critique e iterações
+  de layout na linha expandida de `AgregacoesOverview.tsx`.
+  - Tabela alinhada à coluna SEÇÕES: estrutura `<td colSpan={4} p-0>` + `<td>` conteúdo +
+    `<td colSpan={2} p-0>` (sem ciclo: omite trailing), width=`w-full`.
+  - Formatação PT-BR: `toLocaleString('pt-BR')` nos percentuais (vírgula decimal).
+  - `aria-expanded`, `motion-reduce:transition-none` adicionados aos botões de expand.
+  - Separador da linha restaurado (`border-b border-border-faint` na `<tr>` expandida).
+  - Fundo da área ao redor da tabela: branco (removido `bg-surface-2` do `<td>` externo);
+    linhas internas da tabela: `bg-surface-2`; cabeçalho interno: `bg-surface-3` (mantido).
+  - Mesmos ajustes (PT-BR, aria, motion-reduce, w-fit) replicados em `CiclosClient.tsx`.
 
 ---
 

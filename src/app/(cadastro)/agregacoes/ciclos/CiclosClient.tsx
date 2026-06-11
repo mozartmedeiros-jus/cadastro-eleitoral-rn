@@ -50,6 +50,11 @@ interface CicloRow {
   rows: CicloRowItem[];
 }
 
+function formatPerc(n: number | undefined): string {
+  if (n == null) return '';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
+
 function formatDate(date: Date | null): string {
   if (!date) return '—';
   return date.toLocaleString('pt-BR', {
@@ -244,7 +249,7 @@ export default function CiclosClient() {
                           >
                             <ChevronDown
                               size={14}
-                              className={`text-ink-4 transition-transform duration-150 ${expandedId === c.id ? 'rotate-180' : ''}`}
+                              className={`text-ink-4 transition-transform duration-150 motion-reduce:transition-none ${expandedId === c.id ? 'rotate-180' : ''}`}
                             />
                             {c.id}
                           </button>
@@ -305,17 +310,18 @@ export default function CiclosClient() {
                                       const isLocalExpanded = expandedLocalId === r.rowId;
                                       return (
                                         <>
-                                          <tr key={r.rowId} className="border-b border-border-faint">
+                                          <tr key={r.rowId} className={`border-b border-border-faint transition-colors ${isLocalExpanded ? 'bg-accent-soft' : ''}`}>
                                             <td className="py-2 pr-2">
                                               {localData && (
                                                 <button
                                                   onClick={() => setExpandedLocalId(isLocalExpanded ? null : r.rowId)}
-                                                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-surface-3 transition-colors"
+                                                  className="flex items-center justify-center w-5 h-5 rounded-[4px] hover:bg-surface-3 transition-colors"
                                                   aria-label={isLocalExpanded ? 'Recolher seções' : 'Expandir seções'}
+                                                  aria-expanded={isLocalExpanded}
                                                 >
                                                   <ChevronDown
                                                     size={12}
-                                                    className={`text-ink-4 transition-transform duration-150 ${isLocalExpanded ? 'rotate-180' : ''}`}
+                                                    className={`text-ink-4 transition-transform duration-150 motion-reduce:transition-none ${isLocalExpanded ? 'rotate-180' : ''}`}
                                                   />
                                                 </button>
                                               )}
@@ -336,11 +342,11 @@ export default function CiclosClient() {
                                           {isLocalExpanded && localData && (
                                             <tr key={`${r.rowId}-secoes`}>
                                               <td colSpan={6} className="px-0 pb-2 pt-0">
-                                                <div className="ml-7 mr-2 mb-1 border border-border rounded-[6px] overflow-hidden">
-                                                  <table className="w-full text-left border-collapse">
+                                                <div className="ml-7 mb-1 w-fit border border-border rounded-[6px] overflow-hidden">
+                                                  <table className="text-left border-collapse">
                                                     <thead>
                                                       <tr className="bg-surface-3 border-b border-border">
-                                                        {['Seção', 'Aptos', 'Idosos', 'C/ Defic.', 'Analfabetos'].map(col => (
+                                                        {['Seção', 'Idosos', 'C/ Deficiência', 'Analfabetos'].map(col => (
                                                           <th key={col} className="px-3 py-1.5 text-[9.5px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
                                                             {col}
                                                           </th>
@@ -351,15 +357,14 @@ export default function CiclosClient() {
                                                       {localData.secoes_detalhes.map(s => (
                                                         <tr key={s.secao} className="border-b border-border-faint last:border-0">
                                                           <td className="px-3 py-1.5 num text-[12px] font-semibold text-ink-2">{s.secao}</td>
-                                                          <td className="px-3 py-1.5 num text-[12px] text-ink">{s.aptos}</td>
                                                           <td className="px-3 py-1.5 num text-[12px] text-ink">
-                                                            {s.qde_idosos != null ? `${s.qde_idosos} (${s.perc_idosos?.toFixed(1)}%)` : '—'}
+                                                            {s.qde_idosos != null ? `${s.qde_idosos} (${formatPerc(s.perc_idosos)}%)` : '—'}
                                                           </td>
                                                           <td className="px-3 py-1.5 num text-[12px] text-ink">
-                                                            {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${s.perc_eleit_c_defic?.toFixed(1)}%)` : '—'}
+                                                            {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${formatPerc(s.perc_eleit_c_defic)}%)` : '—'}
                                                           </td>
                                                           <td className="px-3 py-1.5 num text-[12px] text-ink">
-                                                            {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${s.perc_analfabetos?.toFixed(1)}%)` : '—'}
+                                                            {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${formatPerc(s.perc_analfabetos)}%)` : '—'}
                                                           </td>
                                                         </tr>
                                                       ))}

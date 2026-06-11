@@ -41,6 +41,10 @@ interface CicloDoc {
 function formatNumber(n: number) {
   return new Intl.NumberFormat('pt-BR').format(n || 0);
 }
+function formatPerc(n: number | undefined): string {
+  if (n == null) return '';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
 function padSecao(s: string) { return s.padStart(4, '0'); }
 
 const PAGE_SIZE = 50;
@@ -257,6 +261,9 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             {formatNumber(filteredData.length)} locais
             {ciclo ? ` · ciclo ${selectedId} aplicado` : ''}
           </span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-ink-4 whitespace-nowrap">
+            <ChevronDown size={11} /> expande estatísticas por seção
+          </span>
           <span className="text-[11.5px] text-ink-3 whitespace-nowrap">
             <span className="text-warn font-bold">*</span> {AGUARDANDO_HINT}
           </span>
@@ -301,19 +308,19 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                     ? (isCapital ? ciclo.capitalLimit : ciclo.interiorLimit)
                     : null;
                   const isExpanded = expandedRowId === rowId;
-                  const totalCols = 5 + (ciclo ? 2 : 0);
                   return (
                     <>
-                      <tr key={rowId} className="border-b border-border-faint hover:bg-surface-2 transition-colors">
+                      <tr key={rowId} className={`border-b border-border-faint transition-colors ${isExpanded ? 'bg-accent-soft' : 'hover:bg-surface-2'}`}>
                         <td className="px-2 py-3 text-center">
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : rowId)}
-                            className="flex items-center justify-center w-6 h-6 mx-auto rounded hover:bg-surface-3 transition-colors"
+                            className="flex items-center justify-center w-6 h-6 mx-auto rounded-[4px] hover:bg-surface-3 transition-colors"
                             aria-label={isExpanded ? 'Recolher seções' : 'Expandir seções'}
+                            aria-expanded={isExpanded}
                           >
                             <ChevronDown
                               size={13}
-                              className={`text-ink-4 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
+                              className={`text-ink-4 transition-transform duration-150 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
                             />
                           </button>
                         </td>
@@ -355,13 +362,14 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                         )}
                       </tr>
                       {isExpanded && (
-                        <tr key={`${rowId}-secoes`} className="bg-surface-2">
-                          <td colSpan={totalCols} className="px-4 pb-3 pt-0">
+                        <tr key={`${rowId}-secoes`} className="border-b border-border-faint">
+                          <td colSpan={4} className="p-0" />
+                          <td className="px-4 py-3">
                             <div className="border border-border rounded-[6px] overflow-hidden">
                               <table className="w-full text-left border-collapse">
                                 <thead>
                                   <tr className="bg-surface-3 border-b border-border">
-                                    {['Seção', 'Aptos', 'Idosos', 'C/ Defic.', 'Analfabetos'].map(col => (
+                                    {['Seção', 'Idosos', 'C/ Deficiência', 'Analfabetos'].map(col => (
                                       <th key={col} className="px-3 py-1.5 text-[9.5px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
                                         {col}
                                       </th>
@@ -370,17 +378,16 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                                 </thead>
                                 <tbody>
                                   {(row.secoes_detalhes ?? []).map(s => (
-                                    <tr key={s.secao} className="border-b border-border-faint last:border-0">
+                                    <tr key={s.secao} className="border-b border-border-faint last:border-0 bg-surface-2">
                                       <td className="px-3 py-1.5 num text-[12px] font-semibold text-ink-2">{padSecao(s.secao)}</td>
-                                      <td className="px-3 py-1.5 num text-[12px] text-ink">{formatNumber(s.aptos)}</td>
                                       <td className="px-3 py-1.5 num text-[12px] text-ink">
-                                        {s.qde_idosos != null ? `${s.qde_idosos} (${s.perc_idosos?.toFixed(1)}%)` : '—'}
+                                        {s.qde_idosos != null ? `${s.qde_idosos} (${formatPerc(s.perc_idosos)}%)` : '—'}
                                       </td>
                                       <td className="px-3 py-1.5 num text-[12px] text-ink">
-                                        {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${s.perc_eleit_c_defic?.toFixed(1)}%)` : '—'}
+                                        {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${formatPerc(s.perc_eleit_c_defic)}%)` : '—'}
                                       </td>
                                       <td className="px-3 py-1.5 num text-[12px] text-ink">
-                                        {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${s.perc_analfabetos?.toFixed(1)}%)` : '—'}
+                                        {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${formatPerc(s.perc_analfabetos)}%)` : '—'}
                                       </td>
                                     </tr>
                                   ))}
@@ -388,6 +395,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                               </table>
                             </div>
                           </td>
+                          {ciclo && <td colSpan={2} className="p-0" />}
                         </tr>
                       )}
                     </>
