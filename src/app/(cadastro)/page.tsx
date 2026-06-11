@@ -1,5 +1,5 @@
 import CadastroClient from './CadastroClient';
-import data from '../../data/cadastro_eleitoral.json';
+import data from '@data/cadastro_eleitoral.json';
 
 export const metadata = {
   title: "Estatísticas de Cadastro Eleitoral — RN",

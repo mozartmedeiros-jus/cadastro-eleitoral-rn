@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc, Timestamp } from 'firebase/firestore';
-import meta from '../../../data/meta.json';
+import meta from '@data/meta.json';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;

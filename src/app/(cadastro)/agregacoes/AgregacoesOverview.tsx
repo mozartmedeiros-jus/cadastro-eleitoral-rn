@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db, makeRowId } from '@/lib/firebase';
 import { BarChart2, ChevronDown, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
-import meta from '../../../data/meta.json';
+import meta from '@data/meta.json';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;

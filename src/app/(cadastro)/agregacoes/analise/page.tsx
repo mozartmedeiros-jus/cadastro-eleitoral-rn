@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import AgregacoesClient from '../AgregacoesClient';
-import data from '../../../../data/cadastro_eleitoral.json';
+import data from '@data/cadastro_eleitoral.json';
 
 export const metadata = {
   title: 'Análise de Agregações — Cadastro Eleitoral RN',

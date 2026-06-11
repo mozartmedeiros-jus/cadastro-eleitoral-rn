@@ -41,7 +41,7 @@ yarn-error.log*
 firebase-debug.log*
 
 # scripts
-scripts/serviceAccountKey.json
+scripts/orcamento/serviceAccountKey.json
 
 # typescript
 *.tsbuildinfo

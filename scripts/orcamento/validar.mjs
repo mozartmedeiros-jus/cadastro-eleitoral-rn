@@ -1,8 +1,8 @@
 // Valida a coluna "NE CCor" (col. 4) do .xlsx contra os notaEmpenho gravados
 // na coleção opl_empenhos do Firestore. Reporta divergências nos dois sentidos.
 //
-// Uso: node scripts/validar-orcamento.mjs ["caminho/arquivo.xlsx"]
-// Credencial: GOOGLE_APPLICATION_CREDENTIALS ou scripts/serviceAccountKey.json
+// Uso: node scripts/orcamento/validar.mjs ["caminho/arquivo.xlsx"]
+// Credencial: GOOGLE_APPLICATION_CREDENTIALS ou scripts/orcamento/serviceAccountKey.json
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';

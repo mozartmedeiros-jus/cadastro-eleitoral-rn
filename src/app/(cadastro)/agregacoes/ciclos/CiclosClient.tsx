@@ -6,7 +6,7 @@ import { collection, onSnapshot, deleteDoc, doc, Timestamp } from 'firebase/fire
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { History, RotateCcw, Trash2, ChevronDown, Check } from 'lucide-react';
-import meta from '../../../../data/meta.json';
+import meta from '@data/meta.json';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
