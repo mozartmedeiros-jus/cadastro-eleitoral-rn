@@ -96,6 +96,11 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
   - `Sidebar`: item "Agregações" (grupo SPLE) convertido de `<Link>` para `<button>` de
     toggle — impedia abrir o submenu ao clicar estando já em `/agregacoes` (navegação
     para mesma URL resetava o estado React do accordion).
+- **2026-06-11 (validação de gravação de ciclo)**: fixes em `AgregacoesClient.tsx`.
+  - Campo Total vazio agora apaga o valor no Firestore (`deleteField()`) em vez de gravar 0.
+  - Modal de alerta ao salvar ciclo quando Agregar está desmarcado mas Total tem valor:
+    lista Zona · Local de cada linha afetada, com opção de corrigir ou gravar mesmo assim.
+  - Linhas sem `agregar=true` excluídas do ciclo salvo (condição de inclusão endurecida).
 
 ---
 
