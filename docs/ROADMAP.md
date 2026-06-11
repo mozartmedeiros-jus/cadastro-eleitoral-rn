@@ -72,7 +72,7 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ---
 
-## FRENTE B — Orçamento (Pleitos)
+## FRENTE B — Orçamento Pleitos - Dados SERPRO
 
 ### Objetivo
 
@@ -258,3 +258,70 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
   e reestruturado em **Preâmbulo Compartilhado + Frente A (Cadastro) + Frente B (Orçamento)**.
   Conteúdo de orçamento preservado integralmente. Frente Cadastro documentada pela primeira vez
   (factual, a partir do código). Comando `/iniciar` atualizado para o novo caminho.
+- **2026-06-11 (renomeação + nova frente)**: Frente B renomeada para "Orçamento Pleitos - Dados
+  SERPRO". Nova frente "Orçamento Pleitos - Gestão SPLE" registrada com estudo preliminar de
+  modelagem a partir de `_arquivos/ERD-pleitos/`.
+
+---
+
+## FRENTE B — Orçamento Pleitos - Gestão SPLE
+
+> Estudo preliminar concluído. Nenhuma fase implementada.
+
+### Processo
+
+Acompanhamento orçamentário interno do SPLE (processo distinto da Frente B - Dados SERPRO):
+um item de despesa percorre três fases progressivas —
+
+1. **Lançamento das unidades** — a UA propõe valores, memória de cálculo e justificativa.
+2. **Aprovação do orçamento** — ajustes STIE, aprovação COGEL/SIGEPRO e valor aprovado.
+3. **Execução do orçamento** — SEI + NE emitida, valores estimado/empenhado/pago, datas de envio (DOD, ETP, TR/PB, Entrega/Serviço).
+
+**Fonte de dados atual:** planilha Excel/Sheets do SPLE — estrutura plana com grupos repetidos
+de valores por exercício (2022, 2024, proposta 2026) e colunas acumuladas por fase.
+Referência: `_arquivos/ERD-pleitos/` (estudo de modelagem, schema SQL, CSV de estrutura).
+
+**Diferença em relação à Frente B - Dados SERPRO:** `opl_empenhos` ingere NEs já efetivadas
+do CSV público (fase de execução contábil). Esta frente rastreia o **processo de planejamento**
+que antecede e acompanha a execução: UA propõe → STIE/COGEL aprova → NE emitida. As duas são
+complementares e podem ser exibidas juntas, mas têm fontes e fluxos distintos.
+
+### Estudo de modelagem (`_arquivos/ERD-pleitos/`)
+
+Modelo relacional normalizado até 3FN (`estudo_modelagem.md` + `schema.sql`):
+
+| Camada | Tabelas |
+|---|---|
+| Dimensões | `unidade_administrativa`, `plano_integrado`, `despesa_agregada`, `item_despesa`, `exercicio` |
+| Fato central | `item_orcamentario` (exercicio × UA × PI × item_despesa; `status`: lancamento/aprovacao/execucao) |
+| Grupo repetido (1FN) | `valor_referencia` (1:N — histórico de exercícios anteriores) |
+| Fases (1:1) | `lancamento_unidade`, `aprovacao`, `execucao` |
+
+**Pontos fortes:** 3FN correta, grupos repetidos resolvidos sem alterar schema, fases em tabelas
+separadas evitam NULLs, `status` enum viabiliza filtros por fase.
+
+**Questões em aberto para Firestore** (decidir antes de implementar):
+
+| Entidade relacional | Embedding (1 leitura, simpler) | Coleção separada (mais flexível) |
+|---|---|---|
+| Fases 1:1 (`lancamento`, `aprovacao`, `execucao`) | Mapas dentro do doc `opl_itens` | Subcoleções por fase |
+| `valor_referencia` (1:N, crescimento limitado) | Array de objetos no doc | Subcoleção |
+| Dimensões (UA, PI, etc.) | Desnormalizar nome/código no doc | Coleções `opl_unidades`, `opl_planos` |
+
+Para dashboard read-only: embedding das fases + desnormalização parcial das dimensões é a
+abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl_itens`,
+`opl_exercicios`).
+
+### Tabela de fases
+
+| Fase | Descrição | Status |
+|---|---|---|
+| 0 | Decisão do modelo Firestore (embedding vs. coleções) | `[ ]` |
+| 1 | Script de ingestão da planilha → Firestore | `[ ]` |
+| 2 | Página de acompanhamento no app (filtros por UA, PI, fase, exercício) | `[ ]` |
+| 3 | Deploy (rules + hosting) | `[ ]` |
+
+### Log de execução (Gestão SPLE)
+
+- **2026-06-11**: Estudo preliminar de modelagem concluído (`_arquivos/ERD-pleitos/`). Frente
+  registrada no ROADMAP. Nenhuma fase implementada.
