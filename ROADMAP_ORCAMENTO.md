@@ -69,10 +69,10 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 | 0 | Pré-requisitos (service account, dependências) | `[x]` |
 | 1 | Banco: regras `opl_empenhos` + script de ingestão `.xlsx` → Firestore | `[x]` |
 | 2 | Página `/orcamento` (Next.js, padrão DSGov) | `[x]` |
-| 3 | Deploy (firestore rules + hosting) | `[~]` |
+| 3 | Deploy (firestore rules + hosting) | `[x]` |
 
-> **Fase 3 parcial:** `firestore:rules` deployado; **hosting ainda pendente** (deploy de produção
-> a executar manualmente — `firebase deploy --only hosting`).
+> **Fase 3 concluída:** `firestore:rules` e **hosting** deployados em produção
+> (`https://eleicoes2026-dadoszonas.web.app`).
 
 ---
 
@@ -200,3 +200,8 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
   - `npm run build` revalidado após as mudanças (rota `/orcamento` presente, TypeScript OK).
   - **Pendente:** `firebase deploy --only hosting` (deploy de produção, a rodar manualmente) e
     verificação no browser logado como admin (local e produção).
+- **2026-06-11**: Fase 3 concluída (hosting em produção).
+  - `firebase deploy --only hosting` executado com sucesso (89 arquivos em `out`).
+  - Produção: **https://eleicoes2026-dadoszonas.web.app**.
+  - **Verificação manual OK**: browser logado como admin em produção — filtros funcionando.
+  - **Projeto concluído** — todas as 4 fases (`[x]`).
