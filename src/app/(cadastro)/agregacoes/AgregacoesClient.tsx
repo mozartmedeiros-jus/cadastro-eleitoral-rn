@@ -9,7 +9,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
-import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc, Timestamp, deleteField } from 'firebase/firestore';
 import meta from '@data/meta.json';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
@@ -66,6 +66,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   const [savingCiclo, setSavingCiclo] = useState(false);
   const [clearingCiclo, setClearingCiclo] = useState(false);
   const [showClearWarning, setShowClearWarning] = useState(false);
+  const [showSaveWarning, setShowSaveWarning] = useState(false);
   const [agregacoesData, setAgregacoesData] = useState<Record<string, AgregacaoFields>>({});
   // Drafts locais do campo TOTAL enquanto edita (valores não confirmados)
   const [totalDrafts, setTotalDrafts] = useState<Record<string, string>>({});
@@ -131,14 +132,24 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     return agregacoesData[rowId]?.total ?? 0;
   };
 
-  // Commit do draft de TOTAL com clamp/sanitização (mesma lógica de MESA MRJ)
+  // Commit do draft de TOTAL com clamp/sanitização
   const commitTotal = (rowId: string) => {
     const raw = totalDrafts[rowId];
     if (raw === undefined) return;
-    const n = raw === '' ? 0 : Math.max(0, Math.min(9999, Math.floor(Number(raw))));
-    if (Number.isFinite(n)) {
-      saveAgregacaoField(rowId, 'total', n);
+    if (raw === '') {
+      // Campo apagado: remove o total do Firestore (deixa vazio)
+      setDoc(doc(db, 'agregacoes', rowId), {
+        total: deleteField(),
+        updatedAt: serverTimestamp(),
+        updatedBy: auth.currentUser?.email ?? null,
+      }, { merge: true }).catch(err => console.error('Delete total failed:', err));
       setTotalRequired(s => { const ns = new Set(s); ns.delete(rowId); return ns; });
+    } else {
+      const n = Math.max(0, Math.min(9999, Math.floor(Number(raw))));
+      if (Number.isFinite(n)) {
+        saveAgregacaoField(rowId, 'total', n);
+        setTotalRequired(s => { const ns = new Set(s); ns.delete(rowId); return ns; });
+      }
     }
     setTotalDrafts(d => {
       const nd = { ...d };
@@ -219,7 +230,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
     initialData.forEach(item => {
       const rowId = makeRowId(item.zona, item.municipio, item.local);
       const fields = agregacoesData[rowId];
-      if (fields?.agregar === true || fields?.total !== undefined) {
+      if (fields?.agregar === true) {
         rows[rowId] = {
           zona: item.zona,
           municipio: item.municipio,
@@ -423,6 +434,14 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
   const hasFilter = zonaFilter || municipioFilter || localFilter || showOnlyAggregated;
 
+  // Locais com agregar desmarcado mas total preenchido — não serão gravados no ciclo
+  const invalidRows = useMemo(() => {
+    return initialData.filter(item => {
+      const f = agregacoesData[makeRowId(item.zona, item.municipio, item.local)];
+      return f?.agregar !== true && f?.total !== undefined && f.total > 0;
+    });
+  }, [initialData, agregacoesData]);
+
   // Cabeçalho de coluna ordenável
   const SortHead = ({ field, children }: { field: string; children: React.ReactNode }) => {
     const active = sortField === field;
@@ -505,6 +524,50 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                 className="h-9 px-4 rounded-[6px] bg-danger border border-danger text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
               >
                 {clearingCiclo ? 'Apagando…' : 'Confirmar — apagar tudo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de alerta de total zerado ────────────────────── */}
+      {showSaveWarning && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-[8px] shadow-lg max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-bold text-[var(--ink)] mb-1">
+                  {invalidRows.length} {invalidRows.length === 1 ? 'local com Total preenchido sem Agregar' : 'locais com Total preenchido sem Agregar'}
+                </h2>
+                <p className="text-[13px] text-[var(--ink-2)] leading-relaxed mb-3">
+                  Os locais abaixo têm <strong>Total</strong> preenchido mas <strong>Agregar desmarcado</strong>.
+                  Se continuar, esses registros <strong>não serão gravados</strong> no ciclo.
+                </p>
+                <ul className="text-[12.5px] space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                  {invalidRows.map(item => (
+                    <li key={makeRowId(item.zona, item.municipio, item.local)} className="flex items-baseline gap-2 text-[var(--ink-2)]">
+                      <span className="num font-bold text-[var(--ink)] shrink-0">Zona {item.zona}</span>
+                      <span className="text-[var(--ink-4)]">·</span>
+                      <span className="truncate">{item.local}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowSaveWarning(false)}
+                className="h-9 px-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--ink-2)] text-[13px] font-semibold hover:bg-[var(--surface-3)] transition-colors"
+              >
+                Corrigir
+              </button>
+              <button
+                onClick={() => { setShowSaveWarning(false); saveCiclo(); }}
+                disabled={savingCiclo}
+                className="h-9 px-4 rounded-[6px] bg-warn border border-warn text-white text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {savingCiclo ? 'Salvando…' : 'Gravar mesmo assim'}
               </button>
             </div>
           </div>
@@ -701,7 +764,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
               </button>
               <span className="flex-1" />
               <button
-                onClick={saveCiclo}
+                onClick={() => invalidRows.length > 0 ? setShowSaveWarning(true) : saveCiclo()}
                 disabled={savingCiclo || !capitalInput.trim() || !interiorInput.trim()}
                 className="h-9 px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
               >
