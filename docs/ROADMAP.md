@@ -68,7 +68,18 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
-*(Sem histórico anterior a este roadmap — entradas futuras a partir daqui.)*
+- **2026-06-11**: Expand por local com estatísticas por seção — Frente A.
+  - Fonte de dados enriquecida: `data/cadastro_eleitoral.json` recebeu 6 novos campos em cada
+    item de `secoes_detalhes`: `qde_idosos`, `perc_idosos`, `qde_eleit_c_defic`,
+    `perc_eleit_c_defic`, `qde_analfabetos`, `perc_analfabetos` (8.337 seções, 0 perdas).
+    Script de enriquecimento: `scripts/cadastro/enriquecer-secoes.mjs` (npm run enriquecer:secoes);
+    fonte: `_arquivos/ESTATISTICA_SECAO_ELEITORAL_08-06-2026.xlsx`.
+  - `CiclosClient.tsx` (`/agregacoes/ciclos`): novo expand por local dentro do ciclo expandido —
+    ChevronDown por linha abre mini-tabela com Seção · Aptos · Idosos · C/ Defic. · Analfabetos
+    (quantidade e %). Lookup por `zona__municipio__local` contra os dados estáticos do JSON.
+  - `AgregacoesOverview.tsx` (`/agregacoes`): mesma dinâmica de expand aplicada à tabela principal —
+    ChevronDown em todas as linhas, disponível com ou sem ciclo selecionado.
+  - Build e deploy em produção validados (`https://eleicoes2026-dadoszonas.web.app`).
 
 ---
 

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "upload:orcamento": "node scripts/orcamento/upload.mjs",
-    "validar:orcamento": "node scripts/orcamento/validar.mjs"
+    "validar:orcamento": "node scripts/orcamento/validar.mjs",
+    "enriquecer:secoes": "node scripts/cadastro/enriquecer-secoes.mjs"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

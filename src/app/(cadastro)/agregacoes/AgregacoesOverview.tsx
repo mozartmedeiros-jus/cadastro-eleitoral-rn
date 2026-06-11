@@ -9,7 +9,17 @@ import meta from '@data/meta.json';
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
 
-interface SecaoDetalhe { secao: string; aptos: number; situacao?: string; }
+interface SecaoDetalhe {
+  secao: string;
+  aptos: number;
+  situacao?: string;
+  qde_idosos?: number;
+  perc_idosos?: number;
+  qde_eleit_c_defic?: number;
+  perc_eleit_c_defic?: number;
+  qde_analfabetos?: number;
+  perc_analfabetos?: number;
+}
 interface LocationData {
   zona: number | string;
   municipio: string;
@@ -42,6 +52,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
   const [zonaFilter, setZonaFilter] = useState('');
   const [municipioFilter, setMunicipioFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'ciclos'), snap => {
@@ -272,6 +283,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-surface-2 border-b border-border-strong [&>th]:px-4 [&>th]:py-3 [&>th]:text-[10px] [&>th]:font-bold [&>th]:uppercase [&>th]:tracking-[0.07em] [&>th]:text-ink-3 [&>th]:whitespace-nowrap">
+                  <th className="!px-2 w-8" />
                   <th className="text-center">Zona</th>
                   <th>Município</th>
                   <th>Local de Votação</th>
@@ -288,45 +300,97 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
                   const limit = ciclo
                     ? (isCapital ? ciclo.capitalLimit : ciclo.interiorLimit)
                     : null;
+                  const isExpanded = expandedRowId === rowId;
+                  const totalCols = 5 + (ciclo ? 2 : 0);
                   return (
-                    <tr key={rowId} className="border-b border-border-faint hover:bg-surface-2 transition-colors">
-                      <td className="px-4 py-3 text-center font-semibold text-ink-2 num">{row.zona}</td>
-                      <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap">
-                        {row.municipio}
-                        <div className="text-[10px] font-medium text-ink-4">{isCapital ? 'capital' : 'interior'}</div>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-ink">
-                        {row.local}
-                        {row.tem_secao_aguardando && <span className="text-warn font-bold" title={AGUARDANDO_HINT} aria-label={AGUARDANDO_HINT}>*</span>}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
-                          {(row.secoes_detalhes ?? []).map(s => (
-                            <span
-                              key={s.secao}
-                              className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap ${getBadgeClass(s.aptos, limit)}`}
-                              title={s.situacao ? `Seção ${padSecao(s.secao)} · ${AGUARDANDO_HINT}` : undefined}
-                            >
-                              <span className="font-bold">{padSecao(s.secao)}{s.situacao && <span className="text-warn">*</span>}</span>
-                              <span className="opacity-40">·</span>
-                              <span className="font-semibold">{formatNumber(s.aptos)}</span>
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      {ciclo && (
-                        <td className="px-4 py-3 text-center">
-                          {cicloFields?.agregar
-                            ? <Check size={15} className="text-accent inline" />
-                            : <span className="text-ink-4">—</span>}
+                    <>
+                      <tr key={rowId} className="border-b border-border-faint hover:bg-surface-2 transition-colors">
+                        <td className="px-2 py-3 text-center">
+                          <button
+                            onClick={() => setExpandedRowId(isExpanded ? null : rowId)}
+                            className="flex items-center justify-center w-6 h-6 mx-auto rounded hover:bg-surface-3 transition-colors"
+                            aria-label={isExpanded ? 'Recolher seções' : 'Expandir seções'}
+                          >
+                            <ChevronDown
+                              size={13}
+                              className={`text-ink-4 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </button>
                         </td>
-                      )}
-                      {ciclo && (
-                        <td className="px-4 py-3 text-center font-bold num text-ink">
-                          {cicloFields?.total !== undefined ? cicloFields.total : <span className="text-ink-4">—</span>}
+                        <td className="px-4 py-3 text-center font-semibold text-ink-2 num">{row.zona}</td>
+                        <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap">
+                          {row.municipio}
+                          <div className="text-[10px] font-medium text-ink-4">{isCapital ? 'capital' : 'interior'}</div>
                         </td>
+                        <td className="px-4 py-3 font-medium text-ink">
+                          {row.local}
+                          {row.tem_secao_aguardando && <span className="text-warn font-bold" title={AGUARDANDO_HINT} aria-label={AGUARDANDO_HINT}>*</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
+                            {(row.secoes_detalhes ?? []).map(s => (
+                              <span
+                                key={s.secao}
+                                className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap ${getBadgeClass(s.aptos, limit)}`}
+                                title={s.situacao ? `Seção ${padSecao(s.secao)} · ${AGUARDANDO_HINT}` : undefined}
+                              >
+                                <span className="font-bold">{padSecao(s.secao)}{s.situacao && <span className="text-warn">*</span>}</span>
+                                <span className="opacity-40">·</span>
+                                <span className="font-semibold">{formatNumber(s.aptos)}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        {ciclo && (
+                          <td className="px-4 py-3 text-center">
+                            {cicloFields?.agregar
+                              ? <Check size={15} className="text-accent inline" />
+                              : <span className="text-ink-4">—</span>}
+                          </td>
+                        )}
+                        {ciclo && (
+                          <td className="px-4 py-3 text-center font-bold num text-ink">
+                            {cicloFields?.total !== undefined ? cicloFields.total : <span className="text-ink-4">—</span>}
+                          </td>
+                        )}
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${rowId}-secoes`} className="bg-surface-2">
+                          <td colSpan={totalCols} className="px-4 pb-3 pt-0">
+                            <div className="border border-border rounded-[6px] overflow-hidden">
+                              <table className="w-full text-left border-collapse">
+                                <thead>
+                                  <tr className="bg-surface-3 border-b border-border">
+                                    {['Seção', 'Aptos', 'Idosos', 'C/ Defic.', 'Analfabetos'].map(col => (
+                                      <th key={col} className="px-3 py-1.5 text-[9.5px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
+                                        {col}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(row.secoes_detalhes ?? []).map(s => (
+                                    <tr key={s.secao} className="border-b border-border-faint last:border-0">
+                                      <td className="px-3 py-1.5 num text-[12px] font-semibold text-ink-2">{padSecao(s.secao)}</td>
+                                      <td className="px-3 py-1.5 num text-[12px] text-ink">{formatNumber(s.aptos)}</td>
+                                      <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                        {s.qde_idosos != null ? `${s.qde_idosos} (${s.perc_idosos?.toFixed(1)}%)` : '—'}
+                                      </td>
+                                      <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                        {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${s.perc_eleit_c_defic?.toFixed(1)}%)` : '—'}
+                                      </td>
+                                      <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                        {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${s.perc_analfabetos?.toFixed(1)}%)` : '—'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </tr>
+                    </>
                   );
                 })}
               </tbody>

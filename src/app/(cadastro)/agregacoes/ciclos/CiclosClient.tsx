@@ -1,15 +1,34 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { collection, onSnapshot, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { History, RotateCcw, Trash2, ChevronDown, Check } from 'lucide-react';
 import meta from '@data/meta.json';
+import cadastroRaw from '@data/cadastro_eleitoral.json';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
+
+type SecaoEstat = {
+  secao: string;
+  aptos: number;
+  qde_idosos?: number;
+  perc_idosos?: number;
+  qde_eleit_c_defic?: number;
+  perc_eleit_c_defic?: number;
+  qde_analfabetos?: number;
+  perc_analfabetos?: number;
+};
+type LocalData = {
+  zona: number | string;
+  municipio: string;
+  local: string;
+  secoes_detalhes: SecaoEstat[];
+};
+const cadastroData = cadastroRaw as unknown as LocalData[];
 
 interface CicloRowItem {
   rowId: string;
@@ -71,8 +90,17 @@ export default function CiclosClient() {
   const [ciclos, setCiclos] = useState<CicloRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedLocalId, setExpandedLocalId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const localMap = useMemo(() => {
+    const m = new Map<string, LocalData>();
+    for (const item of cadastroData) {
+      m.set(`${item.zona}__${item.municipio}__${item.local}`, item);
+    }
+    return m;
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'ciclos'), (snap) => {
@@ -207,7 +235,11 @@ export default function CiclosClient() {
                         {/* Ciclo ID — clicável para expandir */}
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                            onClick={() => {
+                              const closing = expandedId === c.id;
+                              if (closing) setExpandedLocalId(null);
+                              setExpandedId(closing ? null : c.id);
+                            }}
                             className="flex items-center gap-1.5 font-bold text-ink font-mono text-[13.5px] hover:text-accent transition-colors"
                           >
                             <ChevronDown
@@ -259,6 +291,7 @@ export default function CiclosClient() {
                                 <table className="w-full text-left border-collapse">
                                   <thead>
                                     <tr className="border-b border-border-strong">
+                                      <th className="pb-2 pr-2 w-6" />
                                       {['Zona', 'Município', 'Local de Votação', 'Agregar', 'Total'].map(col => (
                                         <th key={col} className="pb-2 pr-4 text-[10px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
                                           {col}
@@ -267,22 +300,78 @@ export default function CiclosClient() {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {c.rows.map(r => (
-                                      <tr key={r.rowId} className="border-b border-border-faint last:border-0">
-                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-ink-2 num">{r.zona}</td>
-                                        <td className="py-2 pr-4 text-[12.5px] font-semibold text-ink whitespace-nowrap">{r.municipio}</td>
-                                        <td className="py-2 pr-4 text-[12.5px] text-ink">{r.local}</td>
-                                        <td className="py-2 pr-4 text-center">
-                                          {r.agregar
-                                            ? <Check size={14} className="text-accent inline" />
-                                            : <span className="text-ink-4">—</span>
-                                          }
-                                        </td>
-                                        <td className="py-2 text-[12.5px] font-semibold text-ink num">
-                                          {r.total !== undefined ? r.total : <span className="text-ink-4">—</span>}
-                                        </td>
-                                      </tr>
-                                    ))}
+                                    {c.rows.map(r => {
+                                      const localData = localMap.get(`${r.zona}__${r.municipio}__${r.local}`);
+                                      const isLocalExpanded = expandedLocalId === r.rowId;
+                                      return (
+                                        <>
+                                          <tr key={r.rowId} className="border-b border-border-faint">
+                                            <td className="py-2 pr-2">
+                                              {localData && (
+                                                <button
+                                                  onClick={() => setExpandedLocalId(isLocalExpanded ? null : r.rowId)}
+                                                  className="flex items-center justify-center w-5 h-5 rounded hover:bg-surface-3 transition-colors"
+                                                  aria-label={isLocalExpanded ? 'Recolher seções' : 'Expandir seções'}
+                                                >
+                                                  <ChevronDown
+                                                    size={12}
+                                                    className={`text-ink-4 transition-transform duration-150 ${isLocalExpanded ? 'rotate-180' : ''}`}
+                                                  />
+                                                </button>
+                                              )}
+                                            </td>
+                                            <td className="py-2 pr-4 text-[12.5px] font-semibold text-ink-2 num">{r.zona}</td>
+                                            <td className="py-2 pr-4 text-[12.5px] font-semibold text-ink whitespace-nowrap">{r.municipio}</td>
+                                            <td className="py-2 pr-4 text-[12.5px] text-ink">{r.local}</td>
+                                            <td className="py-2 pr-4 text-center">
+                                              {r.agregar
+                                                ? <Check size={14} className="text-accent inline" />
+                                                : <span className="text-ink-4">—</span>
+                                              }
+                                            </td>
+                                            <td className="py-2 text-[12.5px] font-semibold text-ink num">
+                                              {r.total !== undefined ? r.total : <span className="text-ink-4">—</span>}
+                                            </td>
+                                          </tr>
+                                          {isLocalExpanded && localData && (
+                                            <tr key={`${r.rowId}-secoes`}>
+                                              <td colSpan={6} className="px-0 pb-2 pt-0">
+                                                <div className="ml-7 mr-2 mb-1 border border-border rounded-[6px] overflow-hidden">
+                                                  <table className="w-full text-left border-collapse">
+                                                    <thead>
+                                                      <tr className="bg-surface-3 border-b border-border">
+                                                        {['Seção', 'Aptos', 'Idosos', 'C/ Defic.', 'Analfabetos'].map(col => (
+                                                          <th key={col} className="px-3 py-1.5 text-[9.5px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
+                                                            {col}
+                                                          </th>
+                                                        ))}
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                      {localData.secoes_detalhes.map(s => (
+                                                        <tr key={s.secao} className="border-b border-border-faint last:border-0">
+                                                          <td className="px-3 py-1.5 num text-[12px] font-semibold text-ink-2">{s.secao}</td>
+                                                          <td className="px-3 py-1.5 num text-[12px] text-ink">{s.aptos}</td>
+                                                          <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                                            {s.qde_idosos != null ? `${s.qde_idosos} (${s.perc_idosos?.toFixed(1)}%)` : '—'}
+                                                          </td>
+                                                          <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                                            {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${s.perc_eleit_c_defic?.toFixed(1)}%)` : '—'}
+                                                          </td>
+                                                          <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                                            {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${s.perc_analfabetos?.toFixed(1)}%)` : '—'}
+                                                          </td>
+                                                        </tr>
+                                                      ))}
+                                                    </tbody>
+                                                  </table>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </>
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               )}
