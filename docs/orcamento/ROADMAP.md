@@ -205,3 +205,19 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
   - Produção: **https://eleicoes2026-dadoszonas.web.app**.
   - **Verificação manual OK**: browser logado como admin em produção — filtros funcionando.
   - **Projeto concluído** — todas as 4 fases (`[x]`).
+- **2026-06-11 (reorganização cadastro × orçamento)**: estrutura separada em duas frentes, **sem
+  alterar URLs nem comportamento**.
+  - **App:** route groups `src/app/(cadastro)/` (→ `/`, `/agregacoes/*`) e
+    `src/app/(orcamento)/orcamento/` (→ `/orcamento`); não entram na URL. `layout.tsx`/`globals.css`/
+    `favicon.ico` permanecem no topo (root layout único).
+  - **Imports de dados:** alias `@data/*` no `tsconfig.json`; os 7 imports de `data/*.json` migrados
+    de caminho relativo (quebrava com a profundidade do route group) para `@data/`.
+  - **Scripts:** movidos para `scripts/orcamento/{upload,validar}.mjs` + chave gitignored junto
+    (`join(__dirname,...)` resolve sem mudar código); `.gitignore` e `package.json` atualizados;
+    novo npm script `validar:orcamento`.
+  - **Docs:** este roadmap movido de `ROADMAP_ORCAMENTO.md` (raiz) → `docs/orcamento/ROADMAP.md`.
+  - **Núcleo compartilhado** (`src/lib`, `src/components`) inalterado.
+  - **Verificação:** `npm run build` OK (rotas e `out/` idênticos; route groups não vazam para o
+    output). Redeploy `firebase deploy --only hosting` (94 arquivos) e verificação em produção
+    logado como admin — **funcionando**.
+  - **Git:** integrado à `main` via PR #4 (merge `654be52`); branches de feature removidas.
