@@ -125,6 +125,9 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
         const rid = makeRowId(r.zona, r.municipio, r.local);
         return s + (cicloMap[rid]?.total ?? 0);
       }, 0),
+      extras: agregadoRows.filter(r =>
+        cicloMap[makeRowId(r.zona, r.municipio, r.local)]?.total === 0
+      ).length,
       totalEleitores: agregadoRows.reduce((s, r) =>
         s + (r.secoes_detalhes ?? []).reduce((ss, sec) => ss + sec.aptos, 0), 0),
     };
@@ -236,17 +239,24 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
             </div>
             <section className="ds-card overflow-hidden mb-6">
               <div className="grid grid-cols-2 md:grid-cols-4">
-                {[
+                {([
                   { label: 'Locais',             value: kpis.locais },
                   { label: 'Seções',             value: kpis.secoes },
-                  { label: 'Seções agregadas',   value: kpis.secoesAgregadas },
+                  { label: 'Seções agregadas',   value: kpis.secoesAgregadas, extra: kpis.extras },
                   { label: 'Total de eleitores', value: kpis.totalEleitores },
-                ].map((k, i) => (
+                ] as { label: string; value: number; extra?: number }[]).map((k, i) => {
+                  const hasExtra = k.extra !== undefined && k.extra > 0;
+                  return (
                   <div key={k.label} className={`p-4 border-border-faint ${i % 4 !== 3 ? 'md:border-r' : ''} max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3]">{k.label}</div>
-                    <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">{formatNumber(k.value)}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3]">{k.label}{hasExtra && '/extras'}</div>
+                    <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">
+                      {formatNumber(k.value)}
+                      {hasExtra && <span className="text-ink-4"> / </span>}
+                      {hasExtra && <span className="text-danger">{formatNumber(k.extra!)}</span>}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </>

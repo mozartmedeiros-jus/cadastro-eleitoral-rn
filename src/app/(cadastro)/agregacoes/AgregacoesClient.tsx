@@ -75,6 +75,18 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   // Refs dos inputs TOTAL para foco programático
   const totalInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  // Calculadora efêmera: seções selecionadas por linha (auxílio de tela; não persiste no Firestore)
+  const [secoesSelecionadas, setSecoesSelecionadas] = useState<Record<string, Set<string>>>({});
+  const toggleSecaoSel = (rowId: string, secao: string) => {
+    setSecoesSelecionadas(prev => {
+      const cur = new Set(prev[rowId] ?? []);
+      if (cur.has(secao)) cur.delete(secao); else cur.add(secao);
+      return { ...prev, [rowId]: cur };
+    });
+  };
+  const limparSecaoSel = (rowId: string) =>
+    setSecoesSelecionadas(prev => { const n = { ...prev }; delete n[rowId]; return n; });
+
   const [sortField, setSortField] = useState<string>('zona');
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -427,6 +439,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
         const rid = makeRowId(d.zona, d.municipio, d.local);
         return s + (agregacoesData[rid]?.total ?? 0);
       }, 0),
+      extras: agregadoRows.filter(d =>
+        agregacoesData[makeRowId(d.zona, d.municipio, d.local)]?.total === 0
+      ).length,
       totalEleitores: agregadoRows.reduce((s, d) =>
         s + (d.secoes_detalhes || []).reduce((ss, sec) => ss + sec.aptos, 0), 0),
     };
@@ -634,20 +649,27 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
         </div>
         <section className="ds-card overflow-hidden mb-[22px]">
           <div className="grid grid-cols-2 md:grid-cols-4">
-            {[
+            {([
               { label: 'Locais',             value: summary.locais },
               { label: 'Seções',             value: summary.secoes },
-              { label: 'Seções agregadas',   value: summary.secoesAgregadas },
+              { label: 'Seções agregadas',   value: summary.secoesAgregadas, extra: summary.extras },
               { label: 'Total de eleitores', value: summary.totalEleitores },
-            ].map((k, i) => (
+            ] as { label: string; value: number; extra?: number }[]).map((k, i) => {
+              const hasExtra = k.extra !== undefined && k.extra > 0;
+              return (
               <div
                 key={k.label}
                 className={`p-4 border-border-faint ${i % 4 !== 3 ? 'md:border-r' : ''} max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}
               >
-                <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3]">{k.label}</div>
-                <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">{formatNumber(k.value)}</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3]">{k.label}{hasExtra && '/extras'}</div>
+                <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">
+                  {formatNumber(k.value)}
+                  {hasExtra && <span className="text-ink-4"> / </span>}
+                  {hasExtra && <span className="text-danger">{formatNumber(k.extra!)}</span>}
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -891,6 +913,13 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                   const isCapital = row.municipio.trim().toUpperCase() === 'NATAL';
                   const limit = isCapital ? capitalLimit : interiorLimit;
 
+                  // Calculadora: soma do eleitorado das seções selecionadas nesta linha
+                  const sel = secoesSelecionadas[rowId];
+                  const countSel = sel?.size ?? 0;
+                  const somaSel = countSel > 0
+                    ? (row.secoes_detalhes || []).filter(s => sel!.has(s.secao)).reduce((a, s) => a + s.aptos, 0)
+                    : 0;
+
                   return (
                     <tr key={rowId} className="row-hover border-b border-border-faint transition-colors group">
                       <td className="px-4 py-3 text-center font-semibold text-ink-2 num">
@@ -906,17 +935,27 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="grid grid-cols-[repeat(auto-fill,94px)] gap-[5px] max-w-[600px]">
-                          {(row.secoes_detalhes || []).map((s) => (
-                            <span
-                              key={`${rowId}-${s.secao}`}
-                              className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap transition-colors ${getBadgeClasses(s.aptos, limit)}`}
-                              title={s.situacao ? `Seção ${padSecao(s.secao)} · ${AGUARDANDO_HINT}` : `Seção ${padSecao(s.secao)} · ${formatNumber(s.aptos)} eleitores`}
-                            >
-                              <span className="font-bold">{padSecao(s.secao)}{s.situacao && <span className="text-warn">*</span>}</span>
-                              <span className="opacity-40">·</span>
-                              <span className="font-semibold">{formatNumber(s.aptos)}</span>
-                            </span>
-                          ))}
+                          {(row.secoes_detalhes || []).map((s) => {
+                            const isSelected = sel?.has(s.secao) ?? false;
+                            return (
+                              <button
+                                key={`${rowId}-${s.secao}`}
+                                type="button"
+                                aria-pressed={isSelected}
+                                onClick={() => toggleSecaoSel(rowId, s.secao)}
+                                className={`flex items-center justify-between gap-1.5 px-2 py-[3px] rounded-[4px] border text-[11.5px] font-mono num whitespace-nowrap cursor-pointer transition-colors motion-reduce:transition-none ${
+                                  isSelected
+                                    ? 'bg-warn-soft border-warn-border text-warn font-bold'
+                                    : getBadgeClasses(s.aptos, limit)
+                                }`}
+                                title={s.situacao ? `Seção ${padSecao(s.secao)} · ${AGUARDANDO_HINT}` : `Seção ${padSecao(s.secao)} · ${formatNumber(s.aptos)} eleitores`}
+                              >
+                                <span className="font-bold">{padSecao(s.secao)}{s.situacao && <span className="text-warn">*</span>}</span>
+                                <span className="opacity-40">·</span>
+                                <span className="font-semibold">{formatNumber(s.aptos)}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </td>
                       {/* AGREGAR */}
@@ -949,7 +988,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                         )}
                       </td>
                       {/* TOTAL */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center align-top">
+                        <div className="flex flex-col items-center gap-1.5">
                         {canEdit ? (
                           <input
                             ref={(el) => { totalInputRefs.current[rowId] = el; }}
@@ -999,6 +1039,24 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                         ) : (
                           <span className="font-bold text-ink num">{getTotal(rowId)}</span>
                         )}
+                        {countSel > 0 && (
+                          <div
+                            className="flex items-center gap-1.5 px-2 py-[3px] rounded-[4px] border border-border bg-surface-2 text-[11.5px] font-mono"
+                            title="Soma do eleitorado das seções selecionadas"
+                          >
+                            <span className="num font-bold text-ink">{formatNumber(somaSel)}</span>
+                            <span className="text-ink-4 whitespace-nowrap">· {countSel}</span>
+                            <button
+                              type="button"
+                              onClick={() => limparSecaoSel(rowId)}
+                              aria-label="Limpar seleção de seções"
+                              className="text-ink-4 hover:text-danger transition-colors motion-reduce:transition-none cursor-pointer"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )}
+                        </div>
                       </td>
                     </tr>
                   );
