@@ -75,6 +75,8 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
   a interface `SecaoDetalhe`, reusado helper `formatPerc`, linha expandida alinhada à coluna SEÇÕES
   por `colSpan` (4/conteúdo/2); hint "expande estatísticas por seção" na barra. Convive com a
   calculadora (chips) e o visor. Build OK; deploy em produção.
+  - **Git:** integrado à `main` via **PR #9** (`feat/analise-expand-por-local`), merge `b087061`
+    (state MERGED); branch de feature removida (local e remota).
 - **2026-06-12 (KPI extras + ajuste de cor da calculadora)**: dois fixes nas telas de agregação.
   - KPI "Seções agregadas" ganhou contagem de **extras** = nº de linhas com `agregar===true &&
     total===0` (mesma condição da linha vermelha). Com extras > 0 o card vira
