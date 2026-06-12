@@ -69,6 +69,13 @@ interface Empenho {
   despesasPagas: number;
   ano: number;
   mesCode: string;
+  // Snapshot da semana anterior (gravado pela ingestão só quando o valor muda)
+  prevEmpenhadas?: number;
+  prevLiquidadas?: number;
+  prevPagas?: number;
+  prevEmpenhadasAt?: Timestamp;
+  prevLiquidadasAt?: Timestamp;
+  prevPagasAt?: Timestamp;
 }
 
 function formatCurrency(val: number) {
@@ -92,6 +99,12 @@ function formatPercent(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(val || 0);
 }
 
+// Timestamp do Firestore → "dd/mm/aaaa"
+function formatDate(ts?: Timestamp) {
+  if (!ts) return '—';
+  return ts.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 // "2026-06" → "jun/2026"
@@ -103,7 +116,7 @@ function formatMonth(mesCode: string) {
 // Tamanho máximo por lote do Firestore client SDK
 const BATCH_LIMIT = 500;
 
-// Direção da variação de um valor em relação ao mês anterior da mesma NE.
+// Direção da variação de um valor em relação à semana anterior da mesma NE.
 type VarDir = 'up' | 'down' | null;
 function varDir(curr: number, prev?: number): VarDir {
   if (prev === undefined || curr === prev) return null;
@@ -125,8 +138,8 @@ function semEntrada(d: Empenho) {
 }
 
 function VarArrow({ dir }: { dir: VarDir }) {
-  if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou em relação ao mês anterior" />;
-  if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu em relação ao mês anterior" />;
+  if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou em relação à semana anterior" />;
+  if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu em relação à semana anterior" />;
   return null;
 }
 
@@ -255,33 +268,14 @@ export default function OrcamentoClient() {
     });
   }, [data, mesFilter, natFilter, showSuplementar, showSemEntrada, matchesText]);
 
-  // Mês imediatamente anterior de cada NE (base da sinalização de variação).
-  const prevByDocId = useMemo(() => {
-    const groups = new Map<string, Empenho[]>();
-    for (const d of data) {
-      const arr = groups.get(d.notaEmpenho);
-      if (arr) arr.push(d);
-      else groups.set(d.notaEmpenho, [d]);
-    }
-    const map = new Map<string, Empenho | undefined>();
-    for (const arr of groups.values()) {
-      arr.sort((a, b) => a.mesCode.localeCompare(b.mesCode));
-      arr.forEach((d, i) => map.set(d.id, i > 0 ? arr[i - 1] : undefined));
-    }
-    return map;
-  }, [data]);
-
+  // Variação semana-a-semana: compara o valor atual com o snapshot da semana anterior
+  // (campos prev*, gravados pela ingestão só quando o valor muda).
   const hasAnyChange = useMemo(
-    () => (d: Empenho) => {
-      const p = prevByDocId.get(d.id);
-      return (
-        !!p &&
-        (d.despesasEmpenhadas !== p.despesasEmpenhadas ||
-          d.despesasLiquidadas !== p.despesasLiquidadas ||
-          d.despesasPagas !== p.despesasPagas)
-      );
-    },
-    [prevByDocId],
+    () => (d: Empenho) =>
+      !!varDir(d.despesasEmpenhadas, d.prevEmpenhadas) ||
+      !!varDir(d.despesasLiquidadas, d.prevLiquidadas) ||
+      !!varDir(d.despesasPagas, d.prevPagas),
+    [],
   );
 
   // Linhas da tabela: aplica o filtro "apenas com alteração" (não afeta gráfico/indicadores).
@@ -610,7 +604,7 @@ export default function OrcamentoClient() {
                   : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
               }`}
             >
-              <Filter size={14} /> Apenas com alteração no mês
+              <Filter size={14} /> Apenas com alteração na semana
             </button>
             <button
               type="button"
@@ -670,11 +664,10 @@ export default function OrcamentoClient() {
             </thead>
             <tbody className="divide-y divide-border-faint text-sm">
               {tableRows.map((d) => {
-                // Variação vs. mês imediatamente anterior da mesma NE, por coluna.
-                const prev = prevByDocId.get(d.id);
-                const empDir = varDir(d.despesasEmpenhadas, prev?.despesasEmpenhadas);
-                const liqDir = varDir(d.despesasLiquidadas, prev?.despesasLiquidadas);
-                const pagDir = varDir(d.despesasPagas, prev?.despesasPagas);
+                // Variação vs. semana anterior da mesma NE, por coluna (campos prev*).
+                const empDir = varDir(d.despesasEmpenhadas, d.prevEmpenhadas);
+                const liqDir = varDir(d.despesasLiquidadas, d.prevLiquidadas);
+                const pagDir = varDir(d.despesasPagas, d.prevPagas);
 
                 return (
                   <tr key={d.id} className="row-hover">
@@ -692,19 +685,28 @@ export default function OrcamentoClient() {
                       {d.naturezaDespesa}
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div
+                        className="flex items-center justify-end gap-1.5"
+                        title={empDir ? `Empenhado alterado em ${formatDate(d.prevEmpenhadasAt)} · anterior ${formatCurrency(d.prevEmpenhadas!)}` : undefined}
+                      >
                         <span className="font-bold text-ink num">{formatCurrency(d.despesasEmpenhadas)}</span>
                         <VarArrow dir={empDir} />
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div
+                        className="flex items-center justify-end gap-1.5"
+                        title={liqDir ? `Liquidado alterado em ${formatDate(d.prevLiquidadasAt)} · anterior ${formatCurrency(d.prevLiquidadas!)}` : undefined}
+                      >
                         <span className="num text-ink-2">{formatCurrency(d.despesasLiquidadas)}</span>
                         <VarArrow dir={liqDir} />
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div
+                        className="flex items-center justify-end gap-1.5"
+                        title={pagDir ? `Pago alterado em ${formatDate(d.prevPagasAt)} · anterior ${formatCurrency(d.prevPagas!)}` : undefined}
+                      >
                         <span className="num text-ink-2">{formatCurrency(d.despesasPagas)}</span>
                         <VarArrow dir={pagDir} />
                       </div>

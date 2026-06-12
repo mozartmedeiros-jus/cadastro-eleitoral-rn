@@ -78,6 +78,9 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
     sólido (`bg-accent`/`text-accent-on`) para amarelo claro `warn` (`bg-warn-soft`/
     `border-warn-border`/`text-warn`), casando com a tarja de ciclo ativo.
   - Build OK; deploy `firebase deploy --only hosting` em produção.
+  - **Git:** as três entregas de 2026-06-12 (calculadora + cor `warn` + KPI extras) foram
+    integradas à `main` via **PR #7** (`feat/calculadora-secoes-kpi-extras`), merge `f6b81c0`
+    (state MERGED); branch de feature removida (local e remota).
 - **2026-06-12**: Calculadora efêmera de seções na tela de Análise (`/agregacoes/analise`).
   - `AgregacoesClient.tsx` (importado só por `analise/page.tsx`): chips da coluna SEÇÕES viraram
     `<button>` clicáveis (`aria-pressed`, `motion-reduce`); clicar inclui/exclui a seção de uma
@@ -257,6 +260,22 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-12**: Variação **semana-a-semana** na tabela (`/orcamento`), incluindo EMPENHADO.
+  - **Motivo:** o `.xlsx` é atualizado semanalmente, mas o modelo guardava só snapshot mensal e
+    comparava mês-a-mês — as setas (em especial no Empenhado) não refletiam as mudanças semanais.
+  - **Ingestão (`scripts/orcamento/upload.mjs`):** antes de gravar, lê os docs existentes
+    (`collectionRef.get()`) e, **com guarda por valor**, registra `prev<Col>` + `prev<Col>At`
+    (Empenhadas/Liquidadas/Pagas) só quando o valor da coluna muda; se igual, omite (merge preserva
+    o anterior — re-rodar no mesmo período não zera a base). `runAt` = data do upload.
+  - **UI (`OrcamentoClient.tsx`):** setas das 3 colunas passam a comparar `despesas*` vs `prev*`
+    (semana-a-semana); removido o `prevByDocId` mês-a-mês; `hasAnyChange`/filtro "apenas com
+    alteração na semana" reescritos com `varDir(prev*)`. Tooltip por célula com data e valor
+    anterior (`Empenhado alterado em dd/mm/aaaa · anterior R$ …`); helper `formatDate`; `aria-label`
+    e textos "mês" → "semana". Novos campos opcionais na interface `Empenho`.
+  - **Semântica:** `prev*` guarda o último valor distinto; a seta mostra a direção da última
+    variação registrada e permanece até nova variação (decorre da guarda por valor).
+  - **Ordem de implantação:** deploy da UI + rodar o novo `upload:orcamento` para popular `prev*`;
+    setas reaparecem a partir da 1ª semana com valor alterado. Build OK.
 - **2026-06-10**: Fase 0 e 1 concluídas.
   - Dependências instaladas (`firebase-admin`, `xlsx`, `chart.js`, `react-chartjs-2`).
   - `.gitignore` atualizado para ignorar chaves de serviço.
