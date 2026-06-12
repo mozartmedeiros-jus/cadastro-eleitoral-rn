@@ -68,6 +68,13 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-12 (expand por local na Análise)**: portada para `AgregacoesClient.tsx`
+  (`/agregacoes/analise`) a funcionalidade de expandir por local já existente em `AgregacoesOverview`
+  (Eleitores por seção). Coluna líder com chevron abre mini-tabela Seção · Idosos · C/ Deficiência ·
+  Analfabetos (qtd e %), via campos demográficos já presentes no `cadastro_eleitoral.json`. Estendida
+  a interface `SecaoDetalhe`, reusado helper `formatPerc`, linha expandida alinhada à coluna SEÇÕES
+  por `colSpan` (4/conteúdo/2); hint "expande estatísticas por seção" na barra. Convive com a
+  calculadora (chips) e o visor. Build OK; deploy em produção.
 - **2026-06-12 (KPI extras + ajuste de cor da calculadora)**: dois fixes nas telas de agregação.
   - KPI "Seções agregadas" ganhou contagem de **extras** = nº de linhas com `agregar===true &&
     total===0` (mesma condição da linha vermelha). Com extras > 0 o card vira

@@ -19,6 +19,12 @@ interface SecaoDetalhe {
   secao: string;
   aptos: number;
   situacao?: string;
+  qde_idosos?: number;
+  perc_idosos?: number;
+  qde_eleit_c_defic?: number;
+  perc_eleit_c_defic?: number;
+  qde_analfabetos?: number;
+  perc_analfabetos?: number;
 }
 
 interface LocationData {
@@ -52,6 +58,11 @@ function padSecao(secao: string) {
   return secao.padStart(4, '0');
 }
 
+function formatPerc(n: number | undefined): string {
+  if (n == null) return '';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
+
 export default function AgregacoesClient({ initialData }: { initialData: LocationData[] }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -74,6 +85,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
   const [totalRequired, setTotalRequired] = useState<Set<string>>(new Set());
   // Refs dos inputs TOTAL para foco programático
   const totalInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Expand por local: linha cuja mini-tabela de estatísticas demográficas está aberta
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   // Calculadora efêmera: seções selecionadas por linha (auxílio de tela; não persiste no Firestore)
   const [secoesSelecionadas, setSecoesSelecionadas] = useState<Record<string, Set<string>>>({});
@@ -869,6 +883,9 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
           <span className="text-[11.5px] text-ink-4 whitespace-nowrap">
             {formatNumber(sortedData.length)} locais
           </span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-ink-4 whitespace-nowrap">
+            <ChevronDown size={11} /> expande estatísticas por seção
+          </span>
           <span className="text-[11.5px] text-ink-3 whitespace-nowrap">
             <span className="text-warn font-bold">*</span> {AGUARDANDO_HINT}
           </span>
@@ -897,6 +914,7 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-surface-2 border-b border-border-strong [&>th]:sticky [&>th]:top-0 [&>th]:bg-surface-2 [&>th]:px-4 [&>th]:py-3 [&>th]:whitespace-nowrap [&>th]:align-middle">
+                  <th className="!px-2 w-8" />
                   <th className="text-center"><SortHead field="zona">Zona</SortHead></th>
                   <th><SortHead field="municipio">Município</SortHead></th>
                   <th><SortHead field="local">Local de Votação</SortHead></th>
@@ -920,8 +938,25 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                     ? (row.secoes_detalhes || []).filter(s => sel!.has(s.secao)).reduce((a, s) => a + s.aptos, 0)
                     : 0;
 
+                  const isExpanded = expandedRowId === rowId;
+
                   return (
-                    <tr key={rowId} className="row-hover border-b border-border-faint transition-colors group">
+                    <React.Fragment key={rowId}>
+                    <tr className="row-hover border-b border-border-faint transition-colors group">
+                      <td className="px-2 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRowId(isExpanded ? null : rowId)}
+                          className="flex items-center justify-center w-6 h-6 mx-auto rounded-[4px] hover:bg-surface-3 transition-colors"
+                          aria-label={isExpanded ? 'Recolher seções' : 'Expandir seções'}
+                          aria-expanded={isExpanded}
+                        >
+                          <ChevronDown
+                            size={13}
+                            className={`text-ink-4 transition-transform duration-150 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-center font-semibold text-ink-2 num">
                         {row.zona}
                       </td>
@@ -1059,11 +1094,49 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
                         </div>
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr className="border-b border-border-faint">
+                        <td colSpan={4} className="p-0" />
+                        <td className="px-4 py-3">
+                          <div className="border border-border rounded-[6px] overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-surface-3 border-b border-border">
+                                  {['Seção', 'Idosos', 'C/ Deficiência', 'Analfabetos'].map(col => (
+                                    <th key={col} className="px-3 py-1.5 text-[9.5px] font-bold uppercase tracking-[0.07em] text-ink-3 whitespace-nowrap">
+                                      {col}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(row.secoes_detalhes ?? []).map(s => (
+                                  <tr key={s.secao} className="border-b border-border-faint last:border-0 bg-surface-2">
+                                    <td className="px-3 py-1.5 num text-[12px] font-semibold text-ink-2">{padSecao(s.secao)}</td>
+                                    <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                      {s.qde_idosos != null ? `${s.qde_idosos} (${formatPerc(s.perc_idosos)}%)` : '—'}
+                                    </td>
+                                    <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                      {s.qde_eleit_c_defic != null ? `${s.qde_eleit_c_defic} (${formatPerc(s.perc_eleit_c_defic)}%)` : '—'}
+                                    </td>
+                                    <td className="px-3 py-1.5 num text-[12px] text-ink">
+                                      {s.qde_analfabetos != null ? `${s.qde_analfabetos} (${formatPerc(s.perc_analfabetos)}%)` : '—'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                        <td colSpan={2} className="p-0" />
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
                 {paginatedData.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-14 text-center text-ink-3 text-[13.5px]">
+                    <td colSpan={7} className="p-14 text-center text-ink-3 text-[13.5px]">
                       Nenhum resultado encontrado.
                     </td>
                   </tr>
