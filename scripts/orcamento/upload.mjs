@@ -121,11 +121,35 @@ async function runIngestion() {
 
   console.log(`🚀 Enviando ${allData.length} documentos para o Firestore...`);
   const collectionRef = db.collection('opl_empenhos');
-  
+
+  // Lê o estado atual (semana anterior) para registrar prev* com guarda por valor:
+  // só "rola" o anterior quando o valor muda; se igual, omite (merge preserva o anterior).
+  console.log('⏳ Lendo estado atual para comparação semana-a-semana...');
+  const existingSnap = await collectionRef.get();
+  const existing = new Map();
+  existingSnap.forEach(doc => existing.set(doc.id, doc.data()));
+  const runAt = Timestamp.fromDate(new Date());
+
   let count = 0;
   let batch = db.batch();
 
   for (const item of allData) {
+    const cur = existing.get(item.docId);
+    if (cur) {
+      if (cur.despesasEmpenhadas !== undefined && item.data.despesasEmpenhadas !== cur.despesasEmpenhadas) {
+        item.data.prevEmpenhadas = cur.despesasEmpenhadas;
+        item.data.prevEmpenhadasAt = runAt;
+      }
+      if (cur.despesasLiquidadas !== undefined && item.data.despesasLiquidadas !== cur.despesasLiquidadas) {
+        item.data.prevLiquidadas = cur.despesasLiquidadas;
+        item.data.prevLiquidadasAt = runAt;
+      }
+      if (cur.despesasPagas !== undefined && item.data.despesasPagas !== cur.despesasPagas) {
+        item.data.prevPagas = cur.despesasPagas;
+        item.data.prevPagasAt = runAt;
+      }
+    }
+
     const docRef = collectionRef.doc(item.docId);
     batch.set(docRef, item.data, { merge: true });
     count++;
