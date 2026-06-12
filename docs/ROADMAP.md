@@ -68,6 +68,27 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-12 (KPI extras + ajuste de cor da calculadora)**: dois fixes nas telas de agregação.
+  - KPI "Seções agregadas" ganhou contagem de **extras** = nº de linhas com `agregar===true &&
+    total===0` (mesma condição da linha vermelha). Com extras > 0 o card vira
+    `SEÇÕES AGREGADAS/EXTRAS` e o valor `285 / 3` com o extra em `text-danger`; sem extras, fica
+    como antes. Aplicado nos dois componentes: `AgregacoesOverview.tsx` (Eleitores por seção,
+    `kpis`) e `AgregacoesClient.tsx` (Análise, `summary`). Linha vermelha da Análise fora do escopo.
+  - Calculadora de seções (`AgregacoesClient.tsx`): cor do chip **selecionado** trocada de accent
+    sólido (`bg-accent`/`text-accent-on`) para amarelo claro `warn` (`bg-warn-soft`/
+    `border-warn-border`/`text-warn`), casando com a tarja de ciclo ativo.
+  - Build OK; deploy `firebase deploy --only hosting` em produção.
+- **2026-06-12**: Calculadora efêmera de seções na tela de Análise (`/agregacoes/analise`).
+  - `AgregacoesClient.tsx` (importado só por `analise/page.tsx`): chips da coluna SEÇÕES viraram
+    `<button>` clicáveis (`aria-pressed`, `motion-reduce`); clicar inclui/exclui a seção de uma
+    soma. Estado "selecionado" usa accent sólido (`bg-accent`/`text-accent-on`) para distinguir do
+    verde-soft "dentro do limite" (DESIGN.md §5 aponta o conflito de cor).
+  - Visor abaixo da célula TOTAL (aparece só com ≥1 seção selecionada na linha): soma do eleitorado
+    em PT-BR (`.num`) + contagem + botão × para limpar. Visível também para não-editores.
+  - Seleção é **efêmera** (`useState` por linha, `secoesSelecionadas`) — não grava no Firestore;
+    o campo TOTAL continua 100% manual e intocado (sem relação com o visor).
+  - Build OK; deploy `firebase deploy --only hosting` (95 arquivos) em produção
+    (`https://eleicoes2026-dadoszonas.web.app`).
 - **2026-06-11**: Expand por local com estatísticas por seção — Frente A.
   - Fonte de dados enriquecida: `data/cadastro_eleitoral.json` recebeu 6 novos campos em cada
     item de `secoes_detalhes`: `qde_idosos`, `perc_idosos`, `qde_eleit_c_defic`,
