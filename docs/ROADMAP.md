@@ -370,7 +370,7 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ## FRENTE C — Orçamento Pleitos - Gestão SPLE
 
-> Fases 0–2 implementadas (ingestão `opl_itens` + página `/sple`). Falta a Fase 3 (deploy).
+> Fases 0–3 concluídas. Em produção: `https://eleicoes2026-dadoszonas.web.app/sple`.
 
 ### Processo
 
@@ -423,7 +423,7 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
 | 0 | Decisão do modelo Firestore (embedding vs. coleções) | `[x]` |
 | 1 | Script de ingestão da planilha → Firestore | `[x]` |
 | 2 | Página de acompanhamento no app (filtros por UA, PI, fase, exercício) | `[x]` |
-| 3 | Deploy (rules + hosting) | `[ ]` |
+| 3 | Deploy (rules + hosting) | `[x]` |
 
 ### Log de execução (Gestão SPLE)
 
@@ -442,5 +442,7 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
   tabela UA·PI·Item·Aprovado·Estimado·Empenhado·Pago·SEI, e import de `.xlsx` pela UI
   (substituição completa, idêntico à Frente B). Ingestão executada: 130 docs em `opl_itens`;
   `validar:sple` confere 130 = 130 em todos os 22 setores, sem colisão. `npm run build` ok,
-  rota `/sple` no output. **Pendente: Fase 3 (deploy de rules + hosting)** — deixado para o
-  usuário autorizar.
+  rota `/sple` no output.
+- **2026-06-15**: Fase 3 concluída — `firebase deploy --only firestore:rules,hosting` em
+  `eleicoes2026-dadoszonas` (regra `opl_itens` admin-only ativa; 106 arquivos no hosting).
+  Frente C completa e em produção: `https://eleicoes2026-dadoszonas.web.app/sple`.
