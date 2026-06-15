@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "upload:orcamento": "node scripts/orcamento/upload.mjs",
-    "validar:orcamento": "node scripts/orcamento/validar.mjs",
-    "upload:sple": "node scripts/sple/upload.mjs",
-    "validar:sple": "node scripts/sple/validar.mjs",
+    "upload:opl-serpro": "node scripts/opl-serpro/upload.mjs",
+    "validar:opl-serpro": "node scripts/opl-serpro/validar.mjs",
+    "upload:opl-sple": "node scripts/opl-sple/upload.mjs",
+    "validar:opl-sple": "node scripts/opl-sple/validar.mjs",
     "enriquecer:secoes": "node scripts/cadastro/enriquecer-secoes.mjs"
   },
   "dependencies": {

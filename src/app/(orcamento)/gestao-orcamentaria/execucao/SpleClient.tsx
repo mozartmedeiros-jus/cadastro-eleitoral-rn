@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ClipboardList,
   Search,
@@ -8,22 +8,11 @@ import {
   Check,
   Minus,
   AlertCircle,
-  AlertTriangle,
-  Upload,
-  Loader2,
   X,
 } from 'lucide-react';
-import {
-  collection,
-  onSnapshot,
-  getDocs,
-  writeBatch,
-  doc,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
-import { parseItens, SETOR_SHEETS } from '@/lib/sple-xlsx';
 
 interface Item {
   id: string;
@@ -65,9 +54,6 @@ function formatPercent(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(val || 0);
 }
 
-// Tamanho máximo por lote do Firestore client SDK
-const BATCH_LIMIT = 500;
-
 type StatusFilter = 'all' | 'comNe' | 'semNe';
 
 // Cabeçalho de seção (mesmo padrão da tela de Execução Orçamentária).
@@ -91,14 +77,6 @@ export default function SpleClient() {
   const [piFilter, setPiFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
-
-  // Import de novo .xlsx (substitui todos os dados)
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importDone, setImportDone] = useState(false);
 
   useEffect(() => {
     if (!canEdit) return;
@@ -177,89 +155,6 @@ export default function SpleClient() {
     { label: 'Empenhado', value: formatPercent(kpis.pctEmpenhado), title: 'empenhado / aprovado', sub: 'do valor aprovado', accent: true },
   ];
 
-  // --- Import de novo .xlsx (substitui todos os dados) ---
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    e.target.value = ''; // permite reescolher o mesmo arquivo
-    if (file) {
-      setImportError(null);
-      setImportStatus(null);
-      setImportDone(false);
-      setPendingFile(file);
-    }
-  };
-
-  const closeImport = () => {
-    if (importing) return;
-    setPendingFile(null);
-    setImportError(null);
-    setImportStatus(null);
-    setImportDone(false);
-  };
-
-  const commitInBatches = async (
-    ops: ((b: ReturnType<typeof writeBatch>) => void)[],
-    onProgress: (done: number, total: number) => void,
-  ) => {
-    for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
-      const batch = writeBatch(db);
-      ops.slice(i, i + BATCH_LIMIT).forEach(op => op(batch));
-      await batch.commit();
-      onProgress(Math.min(i + BATCH_LIMIT, ops.length), ops.length);
-    }
-  };
-
-  const confirmImport = async () => {
-    if (!pendingFile) return;
-    setImporting(true);
-    setImportError(null);
-    try {
-      setImportStatus('Lendo planilha…');
-      const XLSX = (await import('xlsx')).default;
-      const wb = XLSX.read(await pendingFile.arrayBuffer(), { type: 'array' });
-      const sheets = SETOR_SHEETS
-        .filter(s => wb.Sheets[s])
-        .map(s => ({ setor: s, rows: XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[s], { header: 1 }) }));
-      const novos = parseItens(sheets);
-
-      if (novos.length === 0) {
-        throw new Error(
-          'Nenhum item válido encontrado. Confira se o arquivo segue o layout da planilha do SPLE (abas por setor).',
-        );
-      }
-
-      const col = collection(db, 'opl_itens');
-      const novosIds = new Set(novos.map(n => n.docId));
-
-      // 1) grava/atualiza todos os novos
-      await commitInBatches(
-        novos.map(n => (b: ReturnType<typeof writeBatch>) =>
-          b.set(doc(col, n.docId), { ...n.data, updatedAt: serverTimestamp() }),
-        ),
-        (done, total) => setImportStatus(`Gravando ${done}/${total}…`),
-      );
-
-      // 2) remove os antigos que não estão no novo arquivo (substituição completa)
-      setImportStatus('Removendo registros antigos…');
-      const snap = await getDocs(col);
-      const staleIds = snap.docs.map(d => d.id).filter(id => !novosIds.has(id));
-      if (staleIds.length > 0) {
-        await commitInBatches(
-          staleIds.map(id => (b: ReturnType<typeof writeBatch>) => b.delete(doc(col, id))),
-          (done, total) => setImportStatus(`Removendo ${done}/${total}…`),
-        );
-      }
-
-      setImportStatus(`${novos.length} itens importados com sucesso.`);
-      setImportDone(true);
-    } catch (err) {
-      console.error('Falha ao importar .xlsx:', err);
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar o arquivo.');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   if (!authReady || (canEdit && loading)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -303,17 +198,6 @@ export default function SpleClient() {
               <ClipboardList size={20} className="text-accent shrink-0" />
               Gestão SPLE · Exercício 2026
             </h1>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <input ref={fileInputRef} type="file" accept=".xlsx" hidden onChange={onFileChange} />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Atualizar dados a partir de uma nova planilha"
-              className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
-            >
-              <Upload size={14} /> <span className="hidden sm:inline">Atualizar dados</span>
-            </button>
           </div>
         </div>
       </header>
@@ -453,94 +337,6 @@ export default function SpleClient() {
           </div>
         </section>
       </main>
-
-      {/* Modal: importar/substituir dados */}
-      {pendingFile && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-          <div
-            className="bg-surface border border-border-strong rounded-[8px] max-w-md w-full p-6"
-            style={{ boxShadow: 'var(--shadow-menu)' }}
-          >
-            {importError ? (
-              <>
-                <div className="flex items-start gap-3 mb-4">
-                  <AlertCircle size={20} className="text-danger shrink-0 mt-0.5" />
-                  <div>
-                    <h2 className="text-[15px] font-bold text-ink mb-1">Falha na importação</h2>
-                    <p className="text-[13px] text-ink-2 leading-relaxed">{importError}</p>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={closeImport}
-                    className="h-[38px] px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-medium hover:bg-surface-3 hover:text-ink transition-colors"
-                  >
-                    Fechar
-                  </button>
-                  <button
-                    onClick={confirmImport}
-                    className="h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong transition-colors"
-                  >
-                    Tentar novamente
-                  </button>
-                </div>
-              </>
-            ) : importDone ? (
-              <>
-                <div className="flex items-start gap-3 mb-4">
-                  <ClipboardList size={20} className="text-accent shrink-0 mt-0.5" />
-                  <div>
-                    <h2 className="text-[15px] font-bold text-ink mb-1">Dados atualizados</h2>
-                    <p className="text-[13px] text-ink-2 leading-relaxed">{importStatus}</p>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    onClick={closeImport}
-                    className="h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong transition-colors"
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-start gap-3 mb-4">
-                  <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
-                  <div>
-                    <h2 className="text-[15px] font-bold text-ink mb-1">Substituir todos os dados</h2>
-                    <p className="text-[13px] text-ink-2 leading-relaxed">
-                      Todos os itens atuais serão <strong>apagados</strong> e substituídos pelos dados de{' '}
-                      <strong className="break-all">{pendingFile.name}</strong>. Esta ação não pode ser desfeita.
-                    </p>
-                    {importing && importStatus && (
-                      <p className="mt-3 text-[12px] text-ink-3 flex items-center gap-2">
-                        <Loader2 size={14} className="animate-spin" /> {importStatus}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={closeImport}
-                    disabled={importing}
-                    className="h-[38px] px-4 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-medium hover:bg-surface-3 hover:text-ink transition-colors disabled:opacity-40"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={confirmImport}
-                    disabled={importing}
-                    className="h-[38px] px-4 rounded-[6px] bg-danger border border-danger text-white text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
-                  >
-                    {importing ? 'Substituindo…' : 'Confirmar — substituir tudo'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
