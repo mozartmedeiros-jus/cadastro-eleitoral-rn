@@ -1,6 +1,6 @@
 // Parser do .xlsx do SPLE (Gestão da execução orçamentária — Pleitos 2026), lib-agnóstico.
 // Recebe as linhas já extraídas (sheet_to_json com header:1) de cada aba de setor e devolve
-// 1 documento por linha para a coleção `opl_itens`. Replica o padrão de src/lib/orcamento-xlsx.ts.
+// 1 documento por linha para a coleção `opl_itens`. Replica o padrão de src/lib/opl-serpro-xlsx.ts.
 //
 // `updatedAt` (serverTimestamp) é adicionado na hora da gravação, não aqui.
 

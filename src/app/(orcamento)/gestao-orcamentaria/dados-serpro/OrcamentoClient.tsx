@@ -30,7 +30,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from 'next-themes';
-import { parseEmpenhos } from '@/lib/orcamento-xlsx';
+import { parseEmpenhos } from '@/lib/opl-serpro-xlsx';
 import {
   Chart as ChartJS,
   CategoryScale,

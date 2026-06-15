@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // 1. Caminho da chave
-const serviceAccountPath = process.env.SERVICE_ACCOUNT || join(__dirname, 'serviceAccountKey.json');
+const serviceAccountPath = process.env.SERVICE_ACCOUNT || join(__dirname, '../serviceAccountKey.json');
 
 if (!existsSync(serviceAccountPath)) {
   console.error(`❌ Erro: Arquivo de credenciais não encontrado em: ${serviceAccountPath}`);

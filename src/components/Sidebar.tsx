@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor, ChevronRight, ClipboardList } from 'lucide-react';
+import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor, ChevronRight, ClipboardList, PencilLine, Stamp } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
@@ -17,16 +17,22 @@ interface NavItem {
   sub: boolean;
   authRequired: boolean;
   group: NavGroup;
+  parent?: 'agreg' | 'gestao';
+  disabled?: boolean;
+  dividerBefore?: boolean;
 }
 
 const navigation: NavItem[] = [
   { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false, group: 'nav'  },
   { name: 'Eleitores por seção', href: '/agregacoes',     icon: Map,       sub: false, authRequired: false, group: 'nav'  },
   { name: 'Agregações',   href: '/agregacoes',           icon: Map,       sub: false, authRequired: true,  group: 'sple' },
-  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true,  group: 'sple' },
-  { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true,  group: 'sple' },
-  { name: 'Execução Orçamentária', href: '/orcamento', icon: BarChart3, sub: false, authRequired: true,  group: 'sple' },
-  { name: 'Gestão SPLE',  href: '/sple',                icon: ClipboardList, sub: false, authRequired: true,  group: 'sple' },
+  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true,  group: 'sple', parent: 'agreg' },
+  { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true,  group: 'sple', parent: 'agreg' },
+  { name: 'Gestão Orçamentária', href: '/gestao-orcamentaria', icon: BarChart3, sub: false, authRequired: true, group: 'sple' },
+  { name: 'Lançamento das unidades', href: '#lancamento', icon: PencilLine, sub: true, authRequired: true, group: 'sple', parent: 'gestao', disabled: true },
+  { name: 'Aprovação do orçamento',  href: '#aprovacao',  icon: Stamp,      sub: true, authRequired: true, group: 'sple', parent: 'gestao', disabled: true },
+  { name: 'Execução do orçamento',   href: '/gestao-orcamentaria/execucao',     icon: ClipboardList, sub: true, authRequired: true, group: 'sple', parent: 'gestao' },
+  { name: 'Dados SERPRO',            href: '/gestao-orcamentaria/dados-serpro',  icon: BarChart3,     sub: true, authRequired: true, group: 'sple', parent: 'gestao', dividerBefore: true },
 ];
 
 const navGroups: { id: NavGroup; label: string }[] = [
@@ -44,6 +50,8 @@ export default function Sidebar() {
   // Accordion de "Agregações" (Ciclos/Análise). Abre ao clicar em Agregações;
   // fecha ao sair da seção ou ao clicar em "Eleitores por seção".
   const [agregOpen, setAgregOpen] = useState(false);
+  // Accordion de "Gestão Orçamentária" (Execução/Dados SERPRO + fases em dev).
+  const [gestaoOpen, setGestaoOpen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -51,9 +59,11 @@ export default function Sidebar() {
     if (pathname.startsWith('/agregacoes/')) setAgregOpen(true);
     else if (!pathname.startsWith('/agregacoes')) setAgregOpen(false);
     // em /agregacoes exato: mantém o estado definido pelo clique
+    setGestaoOpen(pathname.startsWith('/gestao-orcamentaria'));
   }, [pathname]);
 
   const visibleNav = navigation.filter(item => !item.authRequired || !!user);
+  const openByParent = { agreg: agregOpen, gestao: gestaoOpen };
 
   const ThemeIcon = !mounted ? Monitor : theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
@@ -101,19 +111,48 @@ export default function Sidebar() {
                 </div>
 
                 {items.map((item) => {
-                  // Sub-itens (Ciclos/Análise) só aparecem com o accordion aberto.
-                  if (item.sub && !agregOpen) return null;
+                  // Sub-itens só aparecem com o accordion do seu pai aberto.
+                  if (item.sub && item.parent && !openByParent[item.parent]) return null;
 
                   const isAgregNav = item.href === '/agregacoes' && item.group === 'nav';
                   const isAgregSple = item.href === '/agregacoes' && item.group === 'sple';
-                  const active = item.href === '/'
-                    ? pathname === '/'
-                    : isAgregNav
-                      ? pathname === '/agregacoes' && !agregOpen
-                      : isAgregSple
-                        ? pathname.startsWith('/agregacoes') && agregOpen
-                        : pathname.startsWith(item.href);
+                  const isGestaoToggle = item.href === '/gestao-orcamentaria';
+                  const active = item.disabled
+                    ? false
+                    : item.href === '/'
+                      ? pathname === '/'
+                      : isAgregNav
+                        ? pathname === '/agregacoes' && !agregOpen
+                        : isAgregSple
+                          ? pathname.startsWith('/agregacoes') && agregOpen
+                          : isGestaoToggle
+                            ? pathname.startsWith('/gestao-orcamentaria') && gestaoOpen
+                            : pathname.startsWith(item.href);
                   const Icon = item.icon;
+
+                  // Divider hairline antes do item (ex.: separa "Dados SERPRO").
+                  const divider = item.dividerBefore ? (
+                    <div className="mx-3 my-[6px] border-t border-[var(--border)]" />
+                  ) : null;
+
+                  // Item desabilitado (fase em desenvolvimento): não navega, sem foco por teclado.
+                  if (item.disabled) {
+                    return (
+                      <Fragment key={item.href}>
+                        {divider}
+                        <div
+                          title="Em desenvolvimento"
+                          className="relative flex items-center gap-[11px] w-full text-left pl-[32px] py-[7px] text-[12.5px] rounded-[var(--radius-ds-md)] mb-[3px] font-medium border border-transparent text-[var(--ink-4)] cursor-default"
+                        >
+                          <Icon size={15} className="text-[var(--ink-4)] shrink-0" />
+                          <span className="flex-1">{item.name}</span>
+                          <span className="shrink-0 rounded-[4px] bg-[var(--surface-3)] text-[var(--ink-3)] border border-[var(--border)] px-1.5 py-px text-[9px] font-bold uppercase tracking-[0.06em]">
+                            em dev
+                          </span>
+                        </div>
+                      </Fragment>
+                    );
+                  }
 
                   const sharedClass = `
                     relative flex items-center gap-[11px] w-full text-left
@@ -132,10 +171,10 @@ export default function Sidebar() {
                         className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
                       />
                       <span className="flex-1">{item.name}</span>
-                      {isAgregSple && (
+                      {(isAgregSple || isGestaoToggle) && (
                         <ChevronRight
                           size={14}
-                          className={`shrink-0 transition-transform duration-150 ${agregOpen ? 'rotate-90' : ''} ${active ? 'text-[var(--accent-ink)]' : 'text-[var(--ink-4)]'}`}
+                          className={`shrink-0 transition-transform duration-150 ${(isAgregSple ? agregOpen : gestaoOpen) ? 'rotate-90' : ''} ${active ? 'text-[var(--accent-ink)]' : 'text-[var(--ink-4)]'}`}
                         />
                       )}
                       {active && (
@@ -156,15 +195,29 @@ export default function Sidebar() {
                     );
                   }
 
+                  if (isGestaoToggle) {
+                    return (
+                      <button
+                        key="gestao-toggle"
+                        onClick={() => setGestaoOpen(v => !v)}
+                        className={sharedClass}
+                      >
+                        {sharedContent}
+                      </button>
+                    );
+                  }
+
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      className={sharedClass}
-                    >
-                      {sharedContent}
-                    </Link>
+                    <Fragment key={item.href}>
+                      {divider}
+                      <Link
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className={sharedClass}
+                      >
+                        {sharedContent}
+                      </Link>
+                    </Fragment>
                   );
                 })}
               </div>

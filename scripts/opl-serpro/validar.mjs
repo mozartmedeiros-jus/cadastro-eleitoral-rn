@@ -1,8 +1,8 @@
 // Valida a coluna "NE CCor" (col. 4) do .xlsx contra os notaEmpenho gravados
 // na coleção opl_empenhos do Firestore. Reporta divergências nos dois sentidos.
 //
-// Uso: node scripts/orcamento/validar.mjs ["caminho/arquivo.xlsx"]
-// Credencial: GOOGLE_APPLICATION_CREDENTIALS ou scripts/orcamento/serviceAccountKey.json
+// Uso: node scripts/opl-serpro/validar.mjs ["caminho/arquivo.xlsx"]
+// Credencial: GOOGLE_APPLICATION_CREDENTIALS ou scripts/serviceAccountKey.json
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const defaultXlsx = '/home/mozdam/Documents/AppsScript_Projeto/Empresa/Orçamento2026/TRE - RN - EXECUÇÃO (EMP_LIQ_PAGO) - por NE - PLEITOS ELEITORAIS - 2026.xlsx';
 const xlsxPath = process.argv[2] || defaultXlsx;
-const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || join(__dirname, 'serviceAccountKey.json');
+const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || join(__dirname, '../serviceAccountKey.json');
 
 for (const [p, label] of [[xlsxPath, 'Planilha'], [serviceAccountPath, 'Credencial']]) {
   if (!existsSync(p)) { console.error(`❌ ${label} não encontrada: ${p}`); process.exit(1); }

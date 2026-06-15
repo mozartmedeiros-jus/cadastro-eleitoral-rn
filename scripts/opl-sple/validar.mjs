@@ -2,8 +2,8 @@
 // documentos gravados em opl_itens no Firestore. Reporta por setor e o total, sinalizando
 // divergências (prova de que não há colisão de doc ID).
 //
-// Uso: node scripts/sple/validar.mjs ["caminho/arquivo.xlsx"]
-// Credencial: GOOGLE_APPLICATION_CREDENTIALS / SERVICE_ACCOUNT ou scripts/orcamento/serviceAccountKey.json
+// Uso: node scripts/opl-sple/validar.mjs ["caminho/arquivo.xlsx"]
+// Credencial: GOOGLE_APPLICATION_CREDENTIALS / SERVICE_ACCOUNT ou scripts/serviceAccountKey.json
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -25,7 +25,7 @@ const xlsxPath = process.argv[2] || defaultXlsx;
 const serviceAccountPath =
   process.env.GOOGLE_APPLICATION_CREDENTIALS ||
   process.env.SERVICE_ACCOUNT ||
-  join(__dirname, '../orcamento/serviceAccountKey.json');
+  join(__dirname, '../serviceAccountKey.json');
 
 for (const [p, label] of [[xlsxPath, 'Planilha'], [serviceAccountPath, 'Credencial']]) {
   if (!existsSync(p)) { console.error(`❌ ${label} não encontrada: ${p}`); process.exit(1); }

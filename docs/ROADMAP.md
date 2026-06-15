@@ -44,8 +44,9 @@
 - `oor_` → Orçamento **Ordinário** (futuro).
 
 **Estrutura de rotas**
-- Route groups `src/app/(cadastro)/` (→ `/`, `/agregacoes/*`) e `src/app/(orcamento)/orcamento/`
-  (→ `/orcamento`). Os grupos não entram na URL.
+- Route groups `src/app/(cadastro)/` (→ `/`, `/agregacoes/*`) e
+  `src/app/(orcamento)/gestao-orcamentaria/` (→ `/gestao-orcamentaria/dados-serpro` [SERPRO] e
+  `/gestao-orcamentaria/execucao` [SPLE]). Os grupos não entram na URL.
 - Núcleo compartilhado: `src/lib/`, `src/components/`, `src/app/layout.tsx`, `src/app/globals.css`.
 
 **Padrão visual obrigatório** — `DESIGN.md` + `PRODUCT.md` (raiz; DSGov / "Cartório Digital"):
@@ -281,6 +282,30 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-15 (reorganização "Gestão Orçamentária")**: o módulo de orçamento foi reorganizado em
+  torno de um item-pai **Gestão Orçamentária** na sidebar, alinhando rotas, lib e scripts ao
+  vocabulário do banco (`opl-serpro` = SERPRO/empenhos, `opl-sple` = SPLE/itens). **Sem mudar
+  conteúdo/H1/`metadata` das páginas** — só organização/navegação.
+  - **Rotas:** `/orcamento` → **`/gestao-orcamentaria/dados-serpro`**; `/sple` →
+    **`/gestao-orcamentaria/execucao`** (`git mv` dos pares page+client). URLs antigas agora **404**
+    (sem stubs) — confirmado em produção.
+  - **Lib:** `orcamento-xlsx.ts` → `opl-serpro-xlsx.ts`; `sple-xlsx.ts` → `opl-sple-xlsx.ts` (import
+    do OrcamentoClient atualizado; `opl-sple-xlsx.ts` mantida mesmo sem importador no app — espelha
+    o parser do CLI).
+  - **Scripts:** `scripts/orcamento` → `scripts/opl-serpro`; `scripts/sple` → `scripts/opl-sple`;
+    credencial unificada em **`scripts/serviceAccountKey.json`** (gitignored; default
+    `join(__dirname,'../serviceAccountKey.json')`). npm scripts → `upload:opl-serpro`,
+    `validar:opl-serpro`, `upload:opl-sple`, `validar:opl-sple`.
+  - **Sidebar:** removidos os 2 itens soltos; nova sanfona **Gestão Orçamentária** com filhos
+    Lançamento (em dev) · Aprovação (em dev) · Execução do orçamento (`/gestao-orcamentaria/execucao`)
+    · Dados SERPRO (`/gestao-orcamentaria/dados-serpro`, com divider). Gating de accordion
+    generalizado por `parent` (`agreg`/`gestao`); só tokens DSGov, sem hex.
+  - **SPLE somente-leitura:** a página de Execução (ex-`/sple`) perdeu o botão "Atualizar dados" +
+    import `.xlsx` pela UI (atualização só via CLI). O import permanece **só** em Dados SERPRO.
+  - **Verificação:** `validar:opl-sple` (130=130) e `validar:opl-serpro` (82 NEs) OK com a credencial
+    no novo caminho; `npm run build` lista as 2 rotas novas e omite `/orcamento`/`/sple`.
+    `firebase deploy --only hosting` (108 arquivos) em produção; HTTP 200 nas novas, 404 nas antigas.
+    `firestore.rules` **não** foi tocado. (Branch `refactor/gestao-orcamentaria`.)
 - **2026-06-12 (coluna NE / SEI)**: a coluna **NE** da tabela de empenhos (`/orcamento`) passou a
   exibir também o **Processo SEI**, no formato empilhado de duas linhas (NE em cima, negrito; SEI
   embaixo, secundário) — mesmo padrão de DESCRIÇÃO / FORNECEDOR. Cabeçalho `NE` → `NE / SEI`.
@@ -370,7 +395,7 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ## FRENTE C — Orçamento Pleitos - Gestão SPLE
 
-> Fases 0–3 concluídas. Em produção: `https://eleicoes2026-dadoszonas.web.app/sple`.
+> Fases 0–3 concluídas. Em produção: `https://eleicoes2026-dadoszonas.web.app/gestao-orcamentaria/execucao`.
 
 ### Processo
 
@@ -427,6 +452,11 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
 
 ### Log de execução (Gestão SPLE)
 
+- **2026-06-15 (reorganização "Gestão Orçamentária")**: a página de Gestão SPLE migrou de `/sple`
+  para **`/gestao-orcamentaria/execucao`** (sub-item "Execução do orçamento" da nova sanfona) e
+  virou **somente-leitura** — removido o import `.xlsx` pela UI; atualização só via
+  `npm run upload:opl-sple`. Lib `sple-xlsx.ts` → `opl-sple-xlsx.ts`; scripts `scripts/sple` →
+  `scripts/opl-sple`. Detalhes completos no Log da Frente B (entrada de 2026-06-15). Em produção.
 - **2026-06-11**: Estudo preliminar de modelagem concluído (`_arquivos/ERD-pleitos/`). Frente
   registrada no ROADMAP. Nenhuma fase implementada.
 - **2026-06-15**: Fases 0–2 implementadas seguindo o prompt de retomada v2

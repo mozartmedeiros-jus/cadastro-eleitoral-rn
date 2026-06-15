@@ -1,8 +1,8 @@
 // Ingestão do .xlsx do SPLE → coleção `opl_itens` (1 documento por linha).
-// Replica a lógica de src/lib/sple-xlsx.ts (parser duplicado, mesmo padrão de scripts/orcamento/upload.mjs).
+// Replica a lógica de src/lib/opl-sple-xlsx.ts (parser duplicado, mesmo padrão de scripts/opl-serpro/upload.mjs).
 //
-// Uso: node scripts/sple/upload.mjs ["caminho/arquivo.xlsx"] [--csv]
-// Credencial: GOOGLE_APPLICATION_CREDENTIALS / SERVICE_ACCOUNT ou scripts/orcamento/serviceAccountKey.json
+// Uso: node scripts/opl-sple/upload.mjs ["caminho/arquivo.xlsx"] [--csv]
+// Credencial: GOOGLE_APPLICATION_CREDENTIALS / SERVICE_ACCOUNT ou scripts/serviceAccountKey.json
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -117,7 +117,7 @@ const isCsvMode = process.argv.includes('--csv');
 const serviceAccountPath =
   process.env.GOOGLE_APPLICATION_CREDENTIALS ||
   process.env.SERVICE_ACCOUNT ||
-  join(__dirname, '../orcamento/serviceAccountKey.json');
+  join(__dirname, '../serviceAccountKey.json');
 
 if (!existsSync(excelPath)) {
   console.error(`❌ Erro: Arquivo Excel não encontrado em: ${excelPath}`);
