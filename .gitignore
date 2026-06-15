@@ -46,3 +46,6 @@ scripts/orcamento/serviceAccountKey.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# material de desenvolvimento/arquivo local
+_arquivos/
