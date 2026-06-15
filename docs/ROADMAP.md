@@ -370,7 +370,7 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ## FRENTE C — Orçamento Pleitos - Gestão SPLE
 
-> Estudo preliminar concluído. Nenhuma fase implementada.
+> Fases 0–3 concluídas. Em produção: `https://eleicoes2026-dadoszonas.web.app/sple`.
 
 ### Processo
 
@@ -420,12 +420,29 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
 
 | Fase | Descrição | Status |
 |---|---|---|
-| 0 | Decisão do modelo Firestore (embedding vs. coleções) | `[ ]` |
-| 1 | Script de ingestão da planilha → Firestore | `[ ]` |
-| 2 | Página de acompanhamento no app (filtros por UA, PI, fase, exercício) | `[ ]` |
-| 3 | Deploy (rules + hosting) | `[ ]` |
+| 0 | Decisão do modelo Firestore (embedding vs. coleções) | `[x]` |
+| 1 | Script de ingestão da planilha → Firestore | `[x]` |
+| 2 | Página de acompanhamento no app (filtros por UA, PI, fase, exercício) | `[x]` |
+| 3 | Deploy (rules + hosting) | `[x]` |
 
 ### Log de execução (Gestão SPLE)
 
 - **2026-06-11**: Estudo preliminar de modelagem concluído (`_arquivos/ERD-pleitos/`). Frente
   registrada no ROADMAP. Nenhuma fase implementada.
+- **2026-06-15**: Fases 0–2 implementadas seguindo o prompt de retomada v2
+  (`_arquivos/ERD-pleitos/retomar-frente-c-v2.md`). Modelo fechado: coleção `opl_itens`,
+  embedding total, **1 documento por linha** (130 docs) com sufixo `__NN` no doc ID para
+  desambiguar a chave natural repetida (UA, PI, naturezaDespesa) — resolve a colisão de ~25%
+  da v1. Criados: `src/lib/sple-xlsx.ts` (parser por header→índice, robusto a coluna
+  faltante/reordenada), `scripts/sple/upload.mjs` (+ `--csv`), `scripts/sple/validar.mjs`,
+  `src/app/(orcamento)/sple/{page,SpleClient}.tsx`. Alterados: `firestore.rules` (bloco
+  `opl_itens` read+write só admin, antes do catch-all), `package.json` (`upload:sple`,
+  `validar:sple`), `src/components/Sidebar.tsx` (item "Gestão SPLE" → `/sple`, grupo `sple`).
+  UI sem gráficos: KPIs (itens, com NE, aprovado, % empenhado), filtros UA/PI/Status + busca,
+  tabela UA·PI·Item·Aprovado·Estimado·Empenhado·Pago·SEI, e import de `.xlsx` pela UI
+  (substituição completa, idêntico à Frente B). Ingestão executada: 130 docs em `opl_itens`;
+  `validar:sple` confere 130 = 130 em todos os 22 setores, sem colisão. `npm run build` ok,
+  rota `/sple` no output.
+- **2026-06-15**: Fase 3 concluída — `firebase deploy --only firestore:rules,hosting` em
+  `eleicoes2026-dadoszonas` (regra `opl_itens` admin-only ativa; 106 arquivos no hosting).
+  Frente C completa e em produção: `https://eleicoes2026-dadoszonas.web.app/sple`.

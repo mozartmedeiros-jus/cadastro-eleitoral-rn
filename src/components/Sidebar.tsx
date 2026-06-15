@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor, ChevronRight } from 'lucide-react';
+import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor, ChevronRight, ClipboardList } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
@@ -26,6 +26,7 @@ const navigation: NavItem[] = [
   { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true,  group: 'sple' },
   { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true,  group: 'sple' },
   { name: 'Execução Orçamentária', href: '/orcamento', icon: BarChart3, sub: false, authRequired: true,  group: 'sple' },
+  { name: 'Gestão SPLE',  href: '/sple',                icon: ClipboardList, sub: false, authRequired: true,  group: 'sple' },
 ];
 
 const navGroups: { id: NavGroup; label: string }[] = [
