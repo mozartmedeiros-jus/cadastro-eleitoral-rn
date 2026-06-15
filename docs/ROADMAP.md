@@ -16,10 +16,22 @@
 
 **Firebase / GCP**
 - Projeto: **`eleicoes2026-dadoszonas`** (`.firebaserc`).
+- Console: https://console.firebase.google.com/project/eleicoes2026-dadoszonas
+  (Firestore: …/eleicoes2026-dadoszonas/firestore).
 - Config web em `.env.local` (NEXT_PUBLIC_FIREBASE_*); **não** commitado (`.gitignore` cobre `.env*`).
-- Hosting: export estático Next.js (`next.config.ts` → `output: "export"`; `firebase.json` → `public: out`).
+- Hosting: export estático Next.js (`next.config.ts` → `output: "export"`; `firebase.json` →
+  `public: "out"`, `cleanUrls`, `trailingSlash:false`).
 - Produção: **https://eleicoes2026-dadoszonas.web.app**
-- Stack: Next.js 16, React 19, Tailwind v4 (`@theme inline`), `firebase ^12`.
+- Deploy: `firebase deploy --only firestore:rules` e `firebase deploy --only hosting`
+  (conta ativa correta: `mozart.medeiros@tre-rn.jus.br` — ver `/iniciar`).
+- Stack: Next.js 16.2.6 (Turbopack) · React 19 · Tailwind v4 (`@theme inline`) · `firebase ^12`
+  (Auth + Firestore; `firebase-admin` na ingestão). Libs: `chart.js`/`react-chartjs-2` (gráficos),
+  `lucide-react` (ícones), `next-themes` (tema), `xlsx` (ingestão `.xlsx`). Dev: http://localhost:3000.
+
+**GitHub**
+- Repositório: `mozartmedeiros-jus/cadastro-eleitoral-rn`
+  (https://github.com/mozartmedeiros-jus/cadastro-eleitoral-rn; conta de push/PR
+  `mozartmedeiros-jus` — ver `/iniciar`).
 
 **Auth e autorização**
 - Login Google via `src/lib/AuthContext.tsx` (`useAuth()`), botão `src/components/AuthButton.tsx`.
@@ -36,7 +48,7 @@
   (→ `/orcamento`). Os grupos não entram na URL.
 - Núcleo compartilhado: `src/lib/`, `src/components/`, `src/app/layout.tsx`, `src/app/globals.css`.
 
-**Padrão visual obrigatório** — `_arquivos/DESIGN.md` + `_arquivos/PRODUCT.md` (DSGov / "Cartório Digital"):
+**Padrão visual obrigatório** — `DESIGN.md` + `PRODUCT.md` (raiz; DSGov / "Cartório Digital"):
 superfícies planas, bordas 1px, **verde eleitoral `#1a7a48` em ≤10% da tela** (só ação/estado), zero
 gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/escuro por **tokens**
 (`bg-surface`, `text-ink-2`, `border-border`, `accent-*`) — nunca hex no JSX. Classes prontas no
@@ -269,6 +281,17 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-12 (coluna NE / SEI)**: a coluna **NE** da tabela de empenhos (`/orcamento`) passou a
+  exibir também o **Processo SEI**, no formato empilhado de duas linhas (NE em cima, negrito; SEI
+  embaixo, secundário) — mesmo padrão de DESCRIÇÃO / FORNECEDOR. Cabeçalho `NE` → `NE / SEI`.
+  - **Dado já existente:** `processoSei` é ingerido de `row[10]` (coluna K) no parser
+    (`src/lib/orcamento-xlsx.ts`) e no script de upload; já estava na interface `Empenho`. Mudança
+    **puramente de apresentação** — sem re-ingestão, schema ou rules.
+  - **Busca:** `processoSei` adicionado ao predicado `matchesText` (busca também por SEI);
+    placeholder atualizado para "Empenho, SEI, descrição ou fornecedor…".
+  - Alterações restritas a `OrcamentoClient.tsx` (cabeçalho, célula, busca, placeholder). Reuso dos
+    tokens/classes existentes (`num`, `text-ink-4`, `text-[11px]`). Build OK; `firebase deploy
+    --only hosting` (96 arquivos em `out`) em produção (`https://eleicoes2026-dadoszonas.web.app`).
 - **2026-06-12**: Variação **semana-a-semana** na tabela (`/orcamento`), incluindo EMPENHADO.
   - **Motivo:** o `.xlsx` é atualizado semanalmente, mas o modelo guardava só snapshot mensal e
     comparava mês-a-mês — as setas (em especial no Empenhado) não refletiam as mudanças semanais.
