@@ -253,6 +253,7 @@ export default function OrcamentoClient() {
     return (d: Empenho) =>
       !term ||
       d.notaEmpenho.toLowerCase().includes(term) ||
+      d.processoSei.toLowerCase().includes(term) ||
       d.descricao.toLowerCase().includes(term) ||
       d.fornecedores.toLowerCase().includes(term);
   }, [search]);
@@ -551,7 +552,7 @@ export default function OrcamentoClient() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
               <input
                 type="text"
-                placeholder="Empenho, descrição ou fornecedor..."
+                placeholder="Empenho, SEI, descrição ou fornecedor..."
                 className="ds-input w-full pl-10"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -654,7 +655,7 @@ export default function OrcamentoClient() {
             <thead>
               <tr className="bg-surface-2 border-b border-border-strong [&>th]:px-4 [&>th]:py-3 [&>th]:text-[10px] [&>th]:font-bold [&>th]:uppercase [&>th]:tracking-wider [&>th]:text-ink-3">
                 <th>Mês</th>
-                <th>NE</th>
+                <th>NE / SEI</th>
                 <th>Descrição / Fornecedor</th>
                 <th>Natureza</th>
                 <th className="text-right">Empenhado</th>
@@ -674,8 +675,9 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 whitespace-nowrap text-ink-3 num font-medium">
                       {formatMonth(d.mesCode)}
                     </td>
-                    <td className="px-4 py-4 font-bold text-ink num">
-                      {d.notaEmpenho.slice(-10)}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="font-bold text-ink num">{d.notaEmpenho.slice(-10)}</div>
+                      <div className="text-[11px] text-ink-4 mt-0.5 num">{d.processoSei}</div>
                     </td>
                     <td className="px-4 py-4 max-w-xs md:max-w-md">
                       <div className="font-medium text-ink line-clamp-1">{d.descricao}</div>
