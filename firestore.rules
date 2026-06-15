@@ -48,6 +48,11 @@ service cloud.firestore {
       allow write: if isAuthorizedAdmin();   // import pela UI (3 admins) + Admin SDK
     }
 
+    match /opl_itens/{docId} {
+      allow read:  if isAuthorizedAdmin();
+      allow write: if isAuthorizedAdmin();   // import pela UI (3 admins) + Admin SDK
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -9,6 +9,8 @@
     "lint": "eslint",
     "upload:orcamento": "node scripts/orcamento/upload.mjs",
     "validar:orcamento": "node scripts/orcamento/validar.mjs",
+    "upload:sple": "node scripts/sple/upload.mjs",
+    "validar:sple": "node scripts/sple/validar.mjs",
     "enriquecer:secoes": "node scripts/cadastro/enriquecer-secoes.mjs"
   },
   "dependencies": {
