@@ -474,8 +474,11 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
   `/gestao-orcamentaria` (active por match exato, `isGestaoOverview`). A página de **Execução**
   (`/gestao-orcamentaria/execucao`) **permanece como antes** (revertida — os painéis não ficam mais
   lá). Prompt-fonte: `_arquivos/ERD-pleitos/implementar-paineis-setor-pi.md`. `npm run build` OK
-  (rota `/gestao-orcamentaria` no output); `firestore.rules` não tocado. (Branch
-  `feat/paineis-setor-pi`.)
+  (rota `/gestao-orcamentaria` no output); `firestore.rules` não tocado.
+  `firebase deploy --only hosting` (118 arquivos) em produção
+  (`https://eleicoes2026-dadoszonas.web.app/gestao-orcamentaria/`).
+  - **Git:** integrado à `main` via **PR #14** (`feat/paineis-setor-pi`), merge `aea1e0e`
+    (state MERGED); branch de feature removida (local e remota).
   - **Nota:** um deploy intermediário (108 arquivos) chegou a publicar os painéis **dentro** da
     Execução; corrigido nesta entrada (movidos para a índice + execução revertida).
 - **2026-06-15 (reorganização "Gestão Orçamentária")**: a página de Gestão SPLE migrou de `/sple`
