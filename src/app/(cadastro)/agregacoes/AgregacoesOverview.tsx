@@ -141,7 +141,7 @@ export default function AgregacoesOverview({ initialData }: { initialData: Locat
 
   const getBadgeClass = (aptos: number, limit: number | null) => {
     if (limit === null) return 'bg-surface border-border-strong text-ink-3';
-    if (aptos <= 50) return 'bg-danger-soft border-danger-border text-danger';
+    if (aptos < 50) return 'bg-danger-soft border-danger-border text-danger';
     if (aptos <= limit) return 'bg-accent-soft border-accent-soft-border text-accent';
     return 'bg-surface border-border-strong text-ink-3';
   };
