@@ -458,6 +458,26 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
 
 ### Log de execução (Gestão SPLE)
 
+- **2026-06-16 (página índice "Visão consolidada" — Por Setor / Por PI)**: nova **página índice**
+  `/gestao-orcamentaria/` (antes 404) com a **Visão consolidada** do orçamento: toggle segmentado
+  de 2 botões (Por Setor / Por PI, `aria-pressed`/`motion-reduce`) alterna **um painel por vez**,
+  agregando o `opl_itens` (sem re-ingestão, coleção ou rules). Helper `agrupar(data, keyOf)` soma
+  `vlrAprovado/Estimado/Empenhado/Pago` por chave (`setor` ou `pi`), ordem A→Z; memos
+  `dadosPorSetor`/`dadosPorPI`/`grupoRows`/`grupoTotais`. Colunas: chave · Aprovado · Estimado ·
+  Δ Aprov.−Estim. · Empenhado · A empenhar · Pago · A pagar (deltas só contam a linha quando a base
+  existe). Coluna-chave traz barra de progresso fina (empenhado/aprovado, `bg-accent` sobre
+  `bg-surface-3`, `aria-label` do %); vazios → "—"; deltas `<0` em `text-danger`; `tfoot` de Totais.
+  Só tokens DSGov (paleta multicolorida do projeto antigo é anti-referência), sem hex no JSX; gate
+  `canEdit` read-only e mesmo cabeçalho/loading da Execução. **Criados:**
+  `gestao-orcamentaria/{page,GestaoOrcamentariaClient}.tsx`. **Sidebar:** item-pai "Gestão
+  Orçamentária" virou toggle puro (`href '#gestao'`) e ganhou 1º filho **"Visão geral"** →
+  `/gestao-orcamentaria` (active por match exato, `isGestaoOverview`). A página de **Execução**
+  (`/gestao-orcamentaria/execucao`) **permanece como antes** (revertida — os painéis não ficam mais
+  lá). Prompt-fonte: `_arquivos/ERD-pleitos/implementar-paineis-setor-pi.md`. `npm run build` OK
+  (rota `/gestao-orcamentaria` no output); `firestore.rules` não tocado. (Branch
+  `feat/paineis-setor-pi`.)
+  - **Nota:** um deploy intermediário (108 arquivos) chegou a publicar os painéis **dentro** da
+    Execução; corrigido nesta entrada (movidos para a índice + execução revertida).
 - **2026-06-15 (reorganização "Gestão Orçamentária")**: a página de Gestão SPLE migrou de `/sple`
   para **`/gestao-orcamentaria/execucao`** (sub-item "Execução do orçamento" da nova sanfona) e
   virou **somente-leitura** — removido o import `.xlsx` pela UI; atualização só via

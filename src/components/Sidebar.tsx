@@ -28,7 +28,8 @@ const navigation: NavItem[] = [
   { name: 'Agregações',   href: '/agregacoes',           icon: Map,       sub: false, authRequired: true,  group: 'sple' },
   { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true,  group: 'sple', parent: 'agreg' },
   { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true,  group: 'sple', parent: 'agreg' },
-  { name: 'Gestão Orçamentária', href: '/gestao-orcamentaria', icon: BarChart3, sub: false, authRequired: true, group: 'sple' },
+  { name: 'Gestão Orçamentária', href: '#gestao', icon: BarChart3, sub: false, authRequired: true, group: 'sple' },
+  { name: 'Visão geral', href: '/gestao-orcamentaria', icon: LayoutDashboard, sub: true, authRequired: true, group: 'sple', parent: 'gestao' },
   { name: 'Lançamento das unidades', href: '#lancamento', icon: PencilLine, sub: true, authRequired: true, group: 'sple', parent: 'gestao', disabled: true },
   { name: 'Aprovação do orçamento',  href: '#aprovacao',  icon: Stamp,      sub: true, authRequired: true, group: 'sple', parent: 'gestao', disabled: true },
   { name: 'Execução do orçamento',   href: '/gestao-orcamentaria/execucao',     icon: ClipboardList, sub: true, authRequired: true, group: 'sple', parent: 'gestao' },
@@ -116,7 +117,8 @@ export default function Sidebar() {
 
                   const isAgregNav = item.href === '/agregacoes' && item.group === 'nav';
                   const isAgregSple = item.href === '/agregacoes' && item.group === 'sple';
-                  const isGestaoToggle = item.href === '/gestao-orcamentaria';
+                  const isGestaoToggle = item.href === '#gestao';
+                  const isGestaoOverview = item.href === '/gestao-orcamentaria';
                   const active = item.disabled
                     ? false
                     : item.href === '/'
@@ -127,7 +129,9 @@ export default function Sidebar() {
                           ? pathname.startsWith('/agregacoes') && agregOpen
                           : isGestaoToggle
                             ? pathname.startsWith('/gestao-orcamentaria') && gestaoOpen
-                            : pathname.startsWith(item.href);
+                            : isGestaoOverview
+                              ? pathname === '/gestao-orcamentaria'
+                              : pathname.startsWith(item.href);
                   const Icon = item.icon;
 
                   // Divider hairline antes do item (ex.: separa "Dados SERPRO").
