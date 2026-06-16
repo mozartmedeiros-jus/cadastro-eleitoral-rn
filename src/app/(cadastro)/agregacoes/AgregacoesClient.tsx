@@ -429,8 +429,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
   // Determina a cor do badge de uma seção — sutil: cor só na borda/texto, fundo neutro
   const getBadgeClasses = (aptos: number, limit: number) => {
-    if (aptos <= 50) {
-      // ≤ 50 eleitores — fundo vermelho suave
+    if (aptos < 50) {
+      // < 50 eleitores — fundo vermelho suave
       return 'bg-danger-soft border-danger-border text-danger';
     }
     if (aptos <= limit) {

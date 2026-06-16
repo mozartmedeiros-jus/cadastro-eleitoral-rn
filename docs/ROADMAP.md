@@ -81,6 +81,12 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-16 (limiar do badge de seção: ≤50 → <50)**: o chip de seção das telas de agregação
+  ficava vermelho (`bg-danger-soft`) para `aptos <= 50`; passou a ser **só para `aptos < 50`** — uma
+  seção com exatamente 50 aptos deixa de ser sinalizada (vira verde se dentro do limite, ou neutra).
+  Trocado `<= 50` por `< 50` em `getBadgeClass` de `AgregacoesOverview.tsx` (Eleitores por seção) e
+  `getBadgeClasses` de `AgregacoesClient.tsx` (Análise; comentário ajustado). Build OK; `firebase
+  deploy --only hosting` (108 arquivos) em produção (`https://eleicoes2026-dadoszonas.web.app`).
 - **2026-06-12 (expand por local na Análise)**: portada para `AgregacoesClient.tsx`
   (`/agregacoes/analise`) a funcionalidade de expandir por local já existente em `AgregacoesOverview`
   (Eleitores por seção). Coluna líder com chevron abre mini-tabela Seção · Idosos · C/ Deficiência ·
