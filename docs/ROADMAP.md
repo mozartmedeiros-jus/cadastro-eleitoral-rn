@@ -288,6 +288,22 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-16 (botão "Atualizar dados" equiparado ao CLI + filtro exclusivo)**: três correções na
+  página **Dados SERPRO** (`/gestao-orcamentaria/dados-serpro`, `OrcamentoClient.tsx`).
+  - **Import por UI agora equivale ao `upload:opl-serpro`:** o `confirmImport` passou a (1) ler o
+    estado atual e gravar `prev{Empenhadas,Liquidadas,Pagas}` + `*At` com **guarda por valor**
+    (variação semana-a-semana), (2) gravar com **`set(..., { merge: true })`** e (3) **deixar de
+    apagar** NEs ausentes (upsert puro). Antes o botão sobrescrevia sem merge (apagava `prev*`) e
+    fazia substituição total — quebrava/zerava a variação semanal. Modal deixou de ser destrutivo.
+  - **Bug de carregamento do `xlsx`:** `(await import('xlsx')).default` vinha `undefined` (xlsx@0.18
+    não tem default export sob Turbopack) → `Cannot read properties of undefined (reading 'read')`.
+    Trocado por `XLSXmod.default ?? XLSXmod`. Import por UI nunca tinha funcionado de fato.
+  - **Filtro "Somente empenho sem entrada":** o toggle deixou de **adicionar** os sem-entrada à
+    lista e passou a mostrar **exclusivamente** os sem entrada (`showSemEntrada ? semEntrada(d) :
+    !semEntrada(d)`), alinhado ao padrão "Apenas com alteração na semana".
+  - **Verificação:** import real executado pela UI (938 docs); checagem read-only no Firestore
+    confirmou `prev*` gravado em Liquidado (70) e Pago (42); Empenhado 0 = nenhum valor empenhado
+    mudou nesta carga (esperado). `npm run build` OK; deploys de hosting em produção.
 - **2026-06-15 (reorganização "Gestão Orçamentária")**: o módulo de orçamento foi reorganizado em
   torno de um item-pai **Gestão Orçamentária** na sidebar, alinhando rotas, lib e scripts ao
   vocabulário do banco (`opl-serpro` = SERPRO/empenhos, `opl-sple` = SPLE/itens). **Sem mudar

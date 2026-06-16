@@ -9,7 +9,6 @@ import {
   Filter,
   Calendar,
   AlertCircle,
-  AlertTriangle,
   Upload,
   Loader2,
   X,
@@ -25,7 +24,7 @@ import {
   writeBatch,
   doc,
   serverTimestamp,
-  type Timestamp
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
@@ -264,7 +263,8 @@ export default function OrcamentoClient() {
       const matchMes = mesFilter === 'all' || d.mesCode === mesFilter;
       const matchNat = natFilter === 'all' || d.naturezaDespesa === natFilter;
       const matchSup = showSuplementar || !isSuplementar(d.descricao);
-      const matchEntrada = showSemEntrada || !semEntrada(d);
+      // showSemEntrada ligado → mostra SOMENTE os sem entrada; desligado → só os com entrada.
+      const matchEntrada = showSemEntrada ? semEntrada(d) : !semEntrada(d);
       return matchMes && matchNat && matchSup && matchEntrada && matchesText(d);
     });
   }, [data, mesFilter, natFilter, showSuplementar, showSemEntrada, matchesText]);
@@ -294,7 +294,7 @@ export default function OrcamentoClient() {
         d.mesCode === summaryMonth &&
         (natFilter === 'all' || d.naturezaDespesa === natFilter) &&
         (showSuplementar || !isSuplementar(d.descricao)) &&
-        (showSemEntrada || !semEntrada(d)) &&
+        (showSemEntrada ? semEntrada(d) : !semEntrada(d)) &&
         matchesText(d)
     );
     const emp = rows.reduce((a, c) => a + c.despesasEmpenhadas, 0);
@@ -409,7 +409,9 @@ export default function OrcamentoClient() {
     setImportError(null);
     try {
       setImportStatus('Lendo planilha…');
-      const XLSX = (await import('xlsx')).default;
+      // xlsx@0.18 não tem default export; sob Turbopack o namespace expõe read/utils direto.
+      const XLSXmod = await import('xlsx');
+      const XLSX = XLSXmod.default ?? XLSXmod;
       const wb = XLSX.read(await pendingFile.arrayBuffer(), { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
@@ -422,28 +424,39 @@ export default function OrcamentoClient() {
       }
 
       const col = collection(db, 'opl_empenhos');
-      const novosIds = new Set(novos.map(n => n.docId));
 
-      // 1) grava/atualiza todos os novos
+      // Lê o estado atual (semana anterior) para registrar prev* com guarda por valor,
+      // espelhando scripts/opl-serpro/upload.mjs: só "rola" o anterior quando o valor muda;
+      // se igual, omite e o merge preserva o que já estava. Upsert puro (não apaga nada).
+      setImportStatus('Lendo estado atual…');
+      const snap = await getDocs(col);
+      const existing = new Map(snap.docs.map(d => [d.id, d.data()]));
+      const runAt = Timestamp.fromDate(new Date());
+
       await commitInBatches(
-        novos.map(n => (b: ReturnType<typeof writeBatch>) =>
-          b.set(doc(col, n.docId), { ...n.data, updatedAt: serverTimestamp() }),
-        ),
+        novos.map(n => (b: ReturnType<typeof writeBatch>) => {
+          const cur = existing.get(n.docId);
+          const extra: Record<string, number | Timestamp> = {};
+          if (cur) {
+            if (cur.despesasEmpenhadas !== undefined && n.data.despesasEmpenhadas !== cur.despesasEmpenhadas) {
+              extra.prevEmpenhadas = cur.despesasEmpenhadas;
+              extra.prevEmpenhadasAt = runAt;
+            }
+            if (cur.despesasLiquidadas !== undefined && n.data.despesasLiquidadas !== cur.despesasLiquidadas) {
+              extra.prevLiquidadas = cur.despesasLiquidadas;
+              extra.prevLiquidadasAt = runAt;
+            }
+            if (cur.despesasPagas !== undefined && n.data.despesasPagas !== cur.despesasPagas) {
+              extra.prevPagas = cur.despesasPagas;
+              extra.prevPagasAt = runAt;
+            }
+          }
+          b.set(doc(col, n.docId), { ...n.data, ...extra, updatedAt: serverTimestamp() }, { merge: true });
+        }),
         (done, total) => setImportStatus(`Gravando ${done}/${total}…`),
       );
 
-      // 2) remove os antigos que não estão no novo arquivo (substituição completa)
-      setImportStatus('Removendo registros antigos…');
-      const snap = await getDocs(col);
-      const staleIds = snap.docs.map(d => d.id).filter(id => !novosIds.has(id));
-      if (staleIds.length > 0) {
-        await commitInBatches(
-          staleIds.map(id => (b: ReturnType<typeof writeBatch>) => b.delete(doc(col, id))),
-          (done, total) => setImportStatus(`Removendo ${done}/${total}…`),
-        );
-      }
-
-      setImportStatus(`${novos.length} empenhos importados com sucesso.`);
+      setImportStatus(`${novos.length} empenhos atualizados (variação semanal preservada).`);
       setImportDone(true);
     } catch (err) {
       console.error('Falha ao importar .xlsx:', err);
@@ -625,15 +638,14 @@ export default function OrcamentoClient() {
               type="button"
               onClick={() => setShowSemEntrada(v => !v)}
               aria-pressed={showSemEntrada}
-              title="Empenhos sem nenhum valor empenhado, liquidado ou pago"
+              title="Mostra apenas os empenhos sem nenhum valor empenhado, liquidado ou pago"
               className={`inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border text-[12.5px] font-medium transition-colors ${
                 showSemEntrada
                   ? 'bg-accent-soft border-accent-soft-border text-accent'
                   : 'bg-surface border-border-strong text-ink-2 hover:bg-surface-3 hover:text-ink'
               }`}
             >
-              {showSemEntrada ? <EyeOff size={14} /> : <Eye size={14} />}
-              {showSemEntrada ? 'Ocultar empenho sem entrada' : 'Mostrar empenho sem entrada'}
+              <Filter size={14} /> Somente empenho sem entrada
             </button>
           </div>
           {!isDefaultView && (
@@ -781,12 +793,13 @@ export default function OrcamentoClient() {
             ) : (
               <>
                 <div className="flex items-start gap-3 mb-4">
-                  <AlertTriangle size={20} className="text-warn shrink-0 mt-0.5" />
+                  <AlertCircle size={20} className="text-accent shrink-0 mt-0.5" />
                   <div>
-                    <h2 className="text-[15px] font-bold text-ink mb-1">Substituir todos os dados</h2>
+                    <h2 className="text-[15px] font-bold text-ink mb-1">Atualizar dados</h2>
                     <p className="text-[13px] text-ink-2 leading-relaxed">
-                      Todos os empenhos atuais serão <strong>apagados</strong> e substituídos pelos dados de{' '}
-                      <strong className="break-all">{pendingFile.name}</strong>. Esta ação não pode ser desfeita.
+                      Os empenhos de <strong className="break-all">{pendingFile.name}</strong> serão
+                      inseridos/atualizados (merge), <strong>preservando o histórico de variação semanal</strong>.
+                      Nenhum registro é apagado.
                     </p>
                     {importing && importStatus && (
                       <p className="mt-3 text-[12px] text-ink-3 flex items-center gap-2">
@@ -806,9 +819,9 @@ export default function OrcamentoClient() {
                   <button
                     onClick={confirmImport}
                     disabled={importing}
-                    className="h-[38px] px-4 rounded-[6px] bg-danger border border-danger text-white text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+                    className="h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong transition-colors disabled:opacity-60"
                   >
-                    {importing ? 'Substituindo…' : 'Confirmar — substituir tudo'}
+                    {importing ? 'Atualizando…' : 'Confirmar atualização'}
                   </button>
                 </div>
               </>
