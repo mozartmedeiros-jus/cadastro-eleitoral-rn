@@ -54,6 +54,16 @@ function formatPercent(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(val || 0);
 }
 
+// Descrição do item sem o código de natureza (ex.: 33.90.36.35.0025), que aparece
+// separadamente embaixo. Remove o código e separadores soltos nas pontas.
+function descricaoItem(itemDespesa: string, codigo: string): string {
+  if (codigo && codigo !== 'OUTROS') {
+    const desc = itemDespesa.replace(codigo, '').replace(/^[\s\-–—]+|[\s\-–—]+$/g, '').trim();
+    return desc || itemDespesa;
+  }
+  return itemDespesa;
+}
+
 type StatusFilter = 'all' | 'comNe' | 'semNe';
 
 // Cabeçalho de seção (mesmo padrão da tela de Execução Orçamentária).
@@ -306,8 +316,10 @@ export default function SpleClient() {
                       <td className="px-4 py-4 whitespace-nowrap font-bold text-ink num">{d.ua}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-ink-2 num">{d.pi}</td>
                       <td className="px-4 py-4 max-w-xs md:max-w-md">
-                        <div className="font-medium text-ink line-clamp-1">{d.itemDespesa || '—'}</div>
-                        <div className="text-[11px] text-ink-4 mt-0.5 num">{d.naturezaDespesa}</div>
+                        <div className="font-medium text-ink">{descricaoItem(d.itemDespesa, d.naturezaDespesa) || '—'}</div>
+                        <div className="text-[11px] text-ink-4 mt-0.5 num">
+                          {d.naturezaDespesa}{d.seiNe ? ` - ${d.seiNe}` : ''}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-right num font-bold text-ink">{formatCurrency(d.vlrAprovado)}</td>
                       <td className="px-4 py-4 text-right num text-ink-2">{formatCurrency(d.vlrEstimado)}</td>

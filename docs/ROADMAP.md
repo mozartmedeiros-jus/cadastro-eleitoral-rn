@@ -458,6 +458,13 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
 
 ### Log de execução (Gestão SPLE)
 
+- **2026-06-16 (coluna ITEM DA DESPESA: descrição + código/SEI)**: na tabela da Execução
+  (`/gestao-orcamentaria/execucao`, `SpleClient.tsx`), a coluna **Item da Despesa** passou a exibir
+  a **descrição** (sem o código de natureza, que aparece embaixo) na 1ª linha, quebrando linha
+  (removido o `line-clamp-1`); na 2ª linha, o **código** (`naturezaDespesa`) e, quando houver SEI
+  (`seiNe`), `" - " + SEI`. Novo helper `descricaoItem(itemDespesa, codigo)` remove o código e os
+  separadores soltos das pontas (quando `codigo === 'OUTROS'`, mantém o texto inteiro). Só
+  apresentação — sem mudança de dados/coleção/rules. Build OK; deploy de hosting em produção.
 - **2026-06-16 (página índice "Visão consolidada" — Por Setor / Por PI)**: nova **página índice**
   `/gestao-orcamentaria/` (antes 404) com a **Visão consolidada** do orçamento: toggle segmentado
   de 2 botões (Por Setor / Por PI, `aria-pressed`/`motion-reduce`) alterna **um painel por vez**,
