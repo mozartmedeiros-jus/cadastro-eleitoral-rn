@@ -12,6 +12,8 @@ import {
 import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import meta from '@data/meta.json';
+import { PontoApoio, PONTOS_CSV_URL } from '@/lib/pontos-apoio-csv';
+import PontosApoioPanel from './PontosApoioPanel';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
@@ -83,6 +85,10 @@ function SectionHead({ title, hint }: { title: string; hint?: string }) {
 }
 
 export default function CadastroClient({ initialData }: { initialData: LocationData[] }) {
+
+  // View toggle: visão "Pessoal de apoio" (default) vs. "Pontos de Apoio" (CSV)
+  const [view, setView] = useState<'pessoal' | 'pontos'>('pessoal');
+  const [pontosFiltered, setPontosFiltered] = useState<PontoApoio[]>([]);
 
   // Filter States
   const [searchLocal, setSearchLocal] = useState('');
@@ -397,6 +403,34 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     document.body.removeChild(link);
   };
 
+  const exportPontosCSV = () => {
+    const headers = ['Zona', 'Municipio', 'Local', 'Endereco', 'Funcionamento', 'Transmissao', 'Apoio'];
+    const csvRows = [headers.join(';')];
+
+    pontosFiltered.forEach(p => {
+      const row = [
+        `"${p.zona.replace(/"/g, '""')}"`,
+        `"${p.municipio.replace(/"/g, '""')}"`,
+        `"${p.local.replace(/"/g, '""')}"`,
+        `"${p.endereco.replace(/"/g, '""')}"`,
+        `"${p.funcionamento.replace(/"/g, '""')}"`,
+        p.transmissao ? 'Sim' : '',
+        `"${p.apoio.replace(/"/g, '""')}"`,
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvContent = '﻿' + csvRows.join('\n'); // BOM para Excel (UTF-8)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `pontos_apoio_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
 
@@ -462,14 +496,44 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             </div>
             <h1 className="mt-0.5 text-[20px] md:text-[22px] font-bold tracking-[-0.02em] text-ink flex items-center gap-2 leading-tight">
               <BarChart3 size={20} className="text-accent shrink-0" />
-              Estatísticas de Locais de Votação
+              {view === 'pessoal'
+                ? 'Estatísticas de Locais de Votação'
+                : 'Locais de Ponto de Apoio e Transmissão descentralizada'}
             </h1>
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Seletor segmentado de visão */}
+            <div role="group" aria-label="Selecionar visão" className="inline-flex rounded-[6px] border border-border-strong bg-surface p-0.5">
+              <button
+                type="button"
+                aria-pressed={view === 'pessoal'}
+                onClick={() => setView('pessoal')}
+                className={`h-[34px] px-3 rounded-[4px] text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+                  view === 'pessoal'
+                    ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
+                    : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
+                }`}
+              >
+                Pessoal de apoio
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === 'pontos'}
+                onClick={() => setView('pontos')}
+                className={`h-[34px] px-3 rounded-[4px] text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+                  view === 'pontos'
+                    ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
+                    : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
+                }`}
+              >
+                Pontos de Apoio
+              </button>
+            </div>
+
             {/* Exportar CSV */}
             <button
-              onClick={exportCSV}
+              onClick={view === 'pessoal' ? exportCSV : exportPontosCSV}
               aria-label="Exportar CSV"
               className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
             >
@@ -479,6 +543,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
         </div>
       </header>
 
+      {view === 'pessoal' && (
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* ── Indicadores-base (5 destaque) ─────────────────────── */}
         <SectionHead title="Indicadores-base" hint="extraídos diretamente do cadastro" />
@@ -973,6 +1038,11 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
           )}
         </section>
       </main>
+      )}
+
+      {view === 'pontos' && (
+        <PontosApoioPanel url={PONTOS_CSV_URL} onFilteredChange={setPontosFiltered} />
+      )}
     </div>
   );
 }

@@ -81,6 +81,32 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-17 (visão "Pontos de Apoio" na Estatística — CSV público ao vivo)**: a página `/`
+  (`CadastroClient.tsx`) ganhou um **seletor segmentado** de 2 opções no topo da área de dados que
+  alterna **toda a área** (título H1, botão Exportar e conteúdo):
+  - **"Pessoal de apoio"** (default) = a tela de hoje, intocada (envolvida em `{view==='pessoal' && …}`);
+    H1 segue "Estatísticas de Locais de Votação".
+  - **"Pontos de Apoio"** = nova visão alimentada por **CSV público de planilha Google buscado AO VIVO**
+    via `fetch` no cliente (sem Firestore, sem ingestão, sem rota, sem item de Sidebar). Compatível com o
+    export estático. H1 → "Locais de Ponto de Apoio e Transmissão descentralizada"; Exportar baixa o CSV
+    dessa visão.
+  - **Lib** `src/lib/pontos-apoio-csv.ts`: `interface PontoApoio`, `PONTOS_CSV_URL` e `fetchPontos(url)`
+    (dynamic import do `xlsx` no padrão `XLSXmod.default ?? XLSXmod`, cache-busting `&_t=Date.now()`,
+    parse por índice com `sheet_to_json {header:1}` — o CSV tem cabeçalho com `PONTO DE APOIO` duplicado).
+  - **Painel** `src/app/(cadastro)/PontosApoioPanel.tsx` (público, sem auth gate): loading/erro com card
+    DSGov, KPIs (locais · transmissão · apoio), filtros (Zona, Município, característica, busca), tabela
+    com paginação reusando o padrão da página.
+  - **Schema final do CSV (7 colunas):** `ZONA · MUNICÍPIO · PONTO DE APOIO (local) · ENDEREÇO ·
+    FUNCIONAMENTO · PONTO DE TRANSMISSÃO · PONTO DE APOIO (apoio)`. **Zona** vira filtro + 1ª coluna; a 7ª
+    coluna **Apoio** é badge: `APOIO`→verde "Sim", `EXCLUIR`→vermelho "Excluir", vazio→"—". (À época, a 7ª
+    coluna ainda não tinha propagado no CSV publicado — código já pronto para quando aparecer.)
+  - **Botão "Atualizar" + carimbo "atualizado às HH:MM"** no painel: re-busca sob demanda (fetch extraído
+    para `load(initial)`; 1ª carga usa loader de painel, recarga usa `refreshing` mantendo a tabela).
+    Resolve o fato de o `fetch` rodar só na montagem; permanece o atraso de cache (~até 5 min) do CSV
+    publicado do Google.
+  - Só tokens DSGov, sem hex no JSX. Build OK; **3 deploys** `firebase deploy --only hosting` em produção
+    ao longo da sessão (base → adequação ZONA/Apoio → botão Atualizar). Material de origem em
+    `_arquivos/pontos-apoio/` (local, gitignored).
 - **2026-06-16 (limiar do badge de seção: ≤50 → <50)**: o chip de seção das telas de agregação
   ficava vermelho (`bg-danger-soft`) para `aptos <= 50`; passou a ser **só para `aptos < 50`** — uma
   seção com exatamente 50 aptos deixa de ser sinalizada (vira verde se dentro do limite, ou neutra).
