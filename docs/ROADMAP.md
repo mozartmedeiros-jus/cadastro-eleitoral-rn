@@ -98,15 +98,18 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
     com paginação reusando o padrão da página.
   - **Schema final do CSV (7 colunas):** `ZONA · MUNICÍPIO · PONTO DE APOIO (local) · ENDEREÇO ·
     FUNCIONAMENTO · PONTO DE TRANSMISSÃO · PONTO DE APOIO (apoio)`. **Zona** vira filtro + 1ª coluna; a 7ª
-    coluna **Apoio** é badge: `APOIO`→verde "Sim", `EXCLUIR`→vermelho "Excluir", vazio→"—". (À época, a 7ª
-    coluna ainda não tinha propagado no CSV publicado — código já pronto para quando aparecer.)
+    coluna **Apoio** é badge por marcador (helper `ApoioBadge` + mapa): `APOIO`→"Sim" (verde),
+    `INCLUIR`→"Incluir" (neutro), `ALTERAR`→"Alterar" (âmbar), `EXCLUIR`→"Excluir" (vermelho), vazio→"—".
+    (À época, a 7ª coluna ainda não tinha propagado no CSV publicado — código já pronto para quando aparecer.)
   - **Botão "Atualizar" + carimbo "atualizado às HH:MM"** no painel: re-busca sob demanda (fetch extraído
     para `load(initial)`; 1ª carga usa loader de painel, recarga usa `refreshing` mantendo a tabela).
     Resolve o fato de o `fetch` rodar só na montagem; permanece o atraso de cache (~até 5 min) do CSV
     publicado do Google.
-  - Só tokens DSGov, sem hex no JSX. Build OK; **3 deploys** `firebase deploy --only hosting` em produção
-    ao longo da sessão (base → adequação ZONA/Apoio → botão Atualizar). Material de origem em
-    `_arquivos/pontos-apoio/` (local, gitignored).
+  - Só tokens DSGov, sem hex no JSX. Build OK; **4 deploys** `firebase deploy --only hosting` em produção
+    ao longo da sessão (base → adequação ZONA/Apoio → botão Atualizar → badges da coluna Apoio). Material
+    de origem em `_arquivos/pontos-apoio/` (local, gitignored).
+  - **Git:** integrado à `main` via **PR #17** (`feat/pontos-apoio-csv`), merge `0e0ad07`
+    (state MERGED); branch de feature removida (local e remota).
 - **2026-06-16 (limiar do badge de seção: ≤50 → <50)**: o chip de seção das telas de agregação
   ficava vermelho (`bg-danger-soft`) para `aptos <= 50`; passou a ser **só para `aptos < 50`** — uma
   seção com exatamente 50 aptos deixa de ser sinalizada (vira verde se dentro do limite, ou neutra).
