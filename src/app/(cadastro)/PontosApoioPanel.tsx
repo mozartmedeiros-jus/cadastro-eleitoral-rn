@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, ChevronDown, ChevronLeft, ChevronRight, MapPin, X, Radio, Check, RefreshCw, AlertCircle, Loader2,
+  Search, ChevronDown, ChevronLeft, ChevronRight, MapPin, X, Radio, Check, Plus, Pencil, RefreshCw, AlertCircle, Loader2,
 } from 'lucide-react';
 import { PontoApoio, fetchPontos } from '@/lib/pontos-apoio-csv';
 
@@ -13,6 +13,26 @@ function SectionHead({ title, hint }: { title: string; hint?: string }) {
       {hint && <span className="text-[11.5px] text-ink-4 whitespace-nowrap">{hint}</span>}
       <span className="flex-1 h-px bg-border" />
     </div>
+  );
+}
+
+// Coluna "PONTO DE APOIO" (apoio): APOIO mostra "Sim"; os demais marcadores de ação
+// (INCLUIR/ALTERAR/EXCLUIR) viram badges próprios. Valor vazio/desconhecido → "—".
+const APOIO_BADGES: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
+  APOIO:   { label: 'Sim',     cls: 'text-accent bg-accent-soft border-accent-soft-border', Icon: Check },
+  INCLUIR: { label: 'Incluir', cls: 'text-ink-2 bg-surface-3 border-border-strong',         Icon: Plus },
+  ALTERAR: { label: 'Alterar', cls: 'text-warn bg-warn-soft border-warn-border',            Icon: Pencil },
+  EXCLUIR: { label: 'Excluir', cls: 'text-danger bg-danger-soft border-danger-border',      Icon: X },
+};
+
+function ApoioBadge({ value }: { value: string }) {
+  const badge = APOIO_BADGES[value.trim().toUpperCase()];
+  if (!badge) return <span className="text-ink-4">—</span>;
+  const { label, cls, Icon } = badge;
+  return (
+    <span className={`inline-flex items-center gap-1 font-mono text-[11px] font-semibold rounded-[4px] px-2 py-0.5 border ${cls}`}>
+      <Icon size={11} /> {label}
+    </span>
   );
 }
 
@@ -292,17 +312,7 @@ export default function PontosApoioPanel({
                     )}
                   </td>
                   <td className="px-4 py-[11px] text-center">
-                    {p.apoio === 'APOIO' ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold rounded-[4px] px-2 py-0.5 text-accent bg-accent-soft border border-accent-soft-border">
-                        <Check size={11} /> Sim
-                      </span>
-                    ) : p.apoio === 'EXCLUIR' ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold rounded-[4px] px-2 py-0.5 text-danger bg-danger-soft border border-danger-border">
-                        <X size={11} /> Excluir
-                      </span>
-                    ) : (
-                      <span className="text-ink-4">—</span>
-                    )}
+                    <ApoioBadge value={p.apoio} />
                   </td>
                 </tr>
               ))}
