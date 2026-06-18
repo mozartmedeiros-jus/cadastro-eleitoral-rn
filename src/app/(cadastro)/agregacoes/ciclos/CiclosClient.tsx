@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { History, RotateCcw, Trash2, ChevronDown, Check } from 'lucide-react';
 import meta from '@data/meta.json';
 import cadastroRaw from '@data/cadastro_eleitoral.json';
+import AgregacoesNav from '@/components/AgregacoesNav';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
@@ -196,6 +197,8 @@ export default function CiclosClient() {
           </h1>
         </div>
       </header>
+
+      <AgregacoesNav />
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="flex items-baseline gap-3 mt-1 mb-3">

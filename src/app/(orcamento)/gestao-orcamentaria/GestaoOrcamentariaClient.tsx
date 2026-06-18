@@ -5,6 +5,7 @@ import { BarChart3, AlertCircle } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
+import GestaoNav from '@/components/GestaoNav';
 
 interface Item {
   id: string;
@@ -143,6 +144,8 @@ export default function GestaoOrcamentariaClient() {
         </div>
       </header>
 
+      <GestaoNav grupoView={grupoView} onGrupoChange={setGrupoView} />
+
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* Visão consolidada */}
         <SectionHead
@@ -153,26 +156,6 @@ export default function GestaoOrcamentariaClient() {
               : `${grupoRows.length} ${grupoRows.length === 1 ? 'PI' : 'PIs'}`
           }
         />
-        <div className="inline-flex p-0.5 mb-3 rounded-[7px] border border-border bg-surface-2 gap-0.5">
-          {([['setor', 'Por Setor'], ['pi', 'Por PI']] as const).map(([val, label]) => {
-            const ativo = grupoView === val;
-            return (
-              <button
-                key={val}
-                type="button"
-                aria-pressed={ativo}
-                onClick={() => setGrupoView(val)}
-                className={`h-[30px] px-3.5 rounded-[5px] border text-[12.5px] font-medium transition motion-reduce:transition-none ${
-                  ativo
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-soft-border)]'
-                    : 'text-ink-2 border-transparent hover:bg-[var(--surface-3)]'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
         <section className="ds-card overflow-hidden mb-7">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

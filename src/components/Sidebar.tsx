@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BarChart2, Map, LayoutDashboard, Menu, X, History, Sun, Moon, Monitor, ChevronRight, ClipboardList, PencilLine, Stamp } from 'lucide-react';
+import { BarChart3, Map, LayoutDashboard, Menu, X, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import AuthButton from '@/components/AuthButton';
@@ -14,26 +14,15 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
-  sub: boolean;
   authRequired: boolean;
   group: NavGroup;
-  parent?: 'agreg' | 'gestao';
-  disabled?: boolean;
-  dividerBefore?: boolean;
 }
 
 const navigation: NavItem[] = [
-  { name: 'Estatística',  href: '/',                    icon: BarChart3, sub: false, authRequired: false, group: 'nav'  },
-  { name: 'Eleitores por seção', href: '/agregacoes',     icon: Map,       sub: false, authRequired: false, group: 'nav'  },
-  { name: 'Agregações',   href: '/agregacoes',           icon: Map,       sub: false, authRequired: true,  group: 'sple' },
-  { name: 'Ciclos',       href: '/agregacoes/ciclos',    icon: History,   sub: true,  authRequired: true,  group: 'sple', parent: 'agreg' },
-  { name: 'Análise',      href: '/agregacoes/analise',   icon: BarChart2, sub: true,  authRequired: true,  group: 'sple', parent: 'agreg' },
-  { name: 'Gestão Orçamentária', href: '#gestao', icon: BarChart3, sub: false, authRequired: true, group: 'sple' },
-  { name: 'Visão geral', href: '/gestao-orcamentaria', icon: LayoutDashboard, sub: true, authRequired: true, group: 'sple', parent: 'gestao' },
-  { name: 'Lançamento das unidades', href: '#lancamento', icon: PencilLine, sub: true, authRequired: true, group: 'sple', parent: 'gestao', disabled: true },
-  { name: 'Aprovação do orçamento',  href: '#aprovacao',  icon: Stamp,      sub: true, authRequired: true, group: 'sple', parent: 'gestao', disabled: true },
-  { name: 'Execução do orçamento',   href: '/gestao-orcamentaria/execucao',     icon: ClipboardList, sub: true, authRequired: true, group: 'sple', parent: 'gestao' },
-  { name: 'Dados SERPRO',            href: '/gestao-orcamentaria/dados-serpro',  icon: BarChart3,     sub: true, authRequired: true, group: 'sple', parent: 'gestao', dividerBefore: true },
+  { name: 'Estatística',  href: '/',                    icon: BarChart3, authRequired: false, group: 'nav'  },
+  { name: 'Eleitores por seção', href: '/agregacoes',     icon: Map,       authRequired: false, group: 'nav'  },
+  { name: 'Agregações',   href: '/agregacoes/ciclos',    icon: Map,       authRequired: true,  group: 'sple' },
+  { name: 'Gestão Orçamentária', href: '/gestao-orcamentaria', icon: BarChart3, authRequired: true, group: 'sple' },
 ];
 
 const navGroups: { id: NavGroup; label: string }[] = [
@@ -48,23 +37,10 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
-  // Accordion de "Agregações" (Ciclos/Análise). Abre ao clicar em Agregações;
-  // fecha ao sair da seção ou ao clicar em "Eleitores por seção".
-  const [agregOpen, setAgregOpen] = useState(false);
-  // Accordion de "Gestão Orçamentária" (Execução/Dados SERPRO + fases em dev).
-  const [gestaoOpen, setGestaoOpen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
-    if (pathname.startsWith('/agregacoes/')) setAgregOpen(true);
-    else if (!pathname.startsWith('/agregacoes')) setAgregOpen(false);
-    // em /agregacoes exato: mantém o estado definido pelo clique
-    setGestaoOpen(pathname.startsWith('/gestao-orcamentaria'));
-  }, [pathname]);
-
   const visibleNav = navigation.filter(item => !item.authRequired || !!user);
-  const openByParent = { agreg: agregOpen, gestao: gestaoOpen };
 
   const ThemeIcon = !mounted ? Monitor : theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
@@ -112,55 +88,23 @@ export default function Sidebar() {
                 </div>
 
                 {items.map((item) => {
-                  // Sub-itens só aparecem com o accordion do seu pai aberto.
-                  if (item.sub && item.parent && !openByParent[item.parent]) return null;
-
+                  // "Eleitores por seção" (nav) → /agregacoes (overview, ativo no exato);
+                  // "Agregações" (sple) → /agregacoes/ciclos (ativo em qualquer sub-rota).
                   const isAgregNav = item.href === '/agregacoes' && item.group === 'nav';
-                  const isAgregSple = item.href === '/agregacoes' && item.group === 'sple';
-                  const isGestaoToggle = item.href === '#gestao';
-                  const isGestaoOverview = item.href === '/gestao-orcamentaria';
-                  const active = item.disabled
-                    ? false
-                    : item.href === '/'
+                  const isAgregSple = item.group === 'sple' && item.href.startsWith('/agregacoes');
+                  const active =
+                    item.href === '/'
                       ? pathname === '/'
                       : isAgregNav
-                        ? pathname === '/agregacoes' && !agregOpen
+                        ? pathname === '/agregacoes'
                         : isAgregSple
-                          ? pathname.startsWith('/agregacoes') && agregOpen
-                          : isGestaoToggle
-                            ? pathname.startsWith('/gestao-orcamentaria') && gestaoOpen
-                            : isGestaoOverview
-                              ? pathname === '/gestao-orcamentaria'
-                              : pathname.startsWith(item.href);
+                          ? pathname.startsWith('/agregacoes/')
+                          : pathname.startsWith(item.href);
                   const Icon = item.icon;
-
-                  // Divider hairline antes do item (ex.: separa "Dados SERPRO").
-                  const divider = item.dividerBefore ? (
-                    <div className="mx-3 my-[6px] border-t border-[var(--border)]" />
-                  ) : null;
-
-                  // Item desabilitado (fase em desenvolvimento): não navega, sem foco por teclado.
-                  if (item.disabled) {
-                    return (
-                      <Fragment key={item.href}>
-                        {divider}
-                        <div
-                          title="Em desenvolvimento"
-                          className="relative flex items-center gap-[11px] w-full text-left pl-[32px] py-[7px] text-[12.5px] rounded-[var(--radius-ds-md)] mb-[3px] font-medium border border-transparent text-[var(--ink-4)] cursor-default"
-                        >
-                          <Icon size={15} className="text-[var(--ink-4)] shrink-0" />
-                          <span className="flex-1">{item.name}</span>
-                          <span className="shrink-0 rounded-[4px] bg-[var(--surface-3)] text-[var(--ink-3)] border border-[var(--border)] px-1.5 py-px text-[9px] font-bold uppercase tracking-[0.06em]">
-                            em dev
-                          </span>
-                        </div>
-                      </Fragment>
-                    );
-                  }
 
                   const sharedClass = `
                     relative flex items-center gap-[11px] w-full text-left
-                    ${item.sub ? 'pl-[32px] py-[7px] text-[12.5px]' : 'px-3 py-[9px] text-[13.5px]'}
+                    px-3 py-[9px] text-[13.5px]
                     rounded-[var(--radius-ds-md)] mb-[3px]
                     font-medium border transition-colors duration-[120ms]
                     ${active
@@ -168,60 +112,23 @@ export default function Sidebar() {
                       : 'text-[var(--ink-2)] border-transparent hover:bg-[var(--surface-3)] hover:text-[var(--ink)]'
                     }
                   `;
-                  const sharedContent = (
-                    <>
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={sharedClass}
+                    >
                       <Icon
-                        size={item.sub ? 15 : 18}
+                        size={18}
                         className={active ? 'text-[var(--accent-ink)] shrink-0' : 'text-[var(--ink-4)] shrink-0'}
                       />
                       <span className="flex-1">{item.name}</span>
-                      {(isAgregSple || isGestaoToggle) && (
-                        <ChevronRight
-                          size={14}
-                          className={`shrink-0 transition-transform duration-150 ${(isAgregSple ? agregOpen : gestaoOpen) ? 'rotate-90' : ''} ${active ? 'text-[var(--accent-ink)]' : 'text-[var(--ink-4)]'}`}
-                        />
-                      )}
                       {active && (
                         <span className="absolute left-[-14px] top-[7px] bottom-[7px] w-[3px] bg-[var(--accent)] rounded-r-[3px]" />
                       )}
-                    </>
-                  );
-
-                  if (isAgregSple) {
-                    return (
-                      <button
-                        key="agregacoes-toggle"
-                        onClick={() => setAgregOpen(v => !v)}
-                        className={sharedClass}
-                      >
-                        {sharedContent}
-                      </button>
-                    );
-                  }
-
-                  if (isGestaoToggle) {
-                    return (
-                      <button
-                        key="gestao-toggle"
-                        onClick={() => setGestaoOpen(v => !v)}
-                        className={sharedClass}
-                      >
-                        {sharedContent}
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <Fragment key={item.href}>
-                      {divider}
-                      <Link
-                        href={item.href}
-                        onClick={() => setOpen(false)}
-                        className={sharedClass}
-                      >
-                        {sharedContent}
-                      </Link>
-                    </Fragment>
+                    </Link>
                   );
                 })}
               </div>

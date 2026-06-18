@@ -24,6 +24,12 @@
 - Produção: **https://eleicoes2026-dadoszonas.web.app**
 - Deploy: `firebase deploy --only firestore:rules` e `firebase deploy --only hosting`
   (conta ativa correta: `mozart.medeiros@tre-rn.jus.br` — ver `/iniciar`).
+- **Nota operacional (chunk obsoleto pós-deploy):** sendo export estático, navegar client-side por
+  link **logo após um deploy** pode mostrar **"This page couldn't load / Reload"** numa aba que já
+  estava aberta — o JS antigo pede um chunk com hash que o deploy novo substituiu (404). **Reload
+  resolve** e **não afeta sessões novas**; não é bug de código/dados/credenciais (confirmado
+  2026-06-18 em `/agregacoes/ciclos`, que retornava HTTP 200). Mitigação: agrupar deploys (publicar
+  1× ao fim de um lote) em vez de a cada ajuste.
 - Stack: Next.js 16.2.6 (Turbopack) · React 19 · Tailwind v4 (`@theme inline`) · `firebase ^12`
   (Auth + Firestore; `firebase-admin` na ingestão). Libs: `chart.js`/`react-chartjs-2` (gráficos),
   `lucide-react` (ícones), `next-themes` (tema), `xlsx` (ingestão `.xlsx`). Dev: http://localhost:3000.
@@ -81,6 +87,40 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-18 (barra de controle na Estatística + 3ª visão "MRJ"; barra de navegação nas Agregações)**:
+  trabalho de padronização das barras horizontais segmentadas (padrão único: `inline-grid`, botão
+  `h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold`, ativo `bg-accent-soft`/
+  `text-accent-ink`/`border-accent-soft-border`).
+  - **Estatística (`/`, `CadastroClient.tsx`):** o seletor de visão e o `Exportar CSV` saíram do
+    canto direito do cabeçalho fixo para uma **barra de controle abaixo do cabeçalho**. Esquerda:
+    seletor `grid-cols-3` (itens de mesma largura) `Pessoal de apoio | Pontos de Apoio | MRJ`.
+    Direita (mesma linha): `Atualizar` (só na visão Pontos de Apoio) + `Exportar CSV`, com carimbo
+    "atualizado às HH:MM". O **Atualizar** foi elevado do `PontosApoioPanel` para a barra via novo
+    prop `onControlsChange` (`{ lastUpdated, refreshing, refresh }`; `refresh: () => load()` p/ não
+    passar o evento como `initial`); a lógica de fetch segue no painel e a barra interna foi
+    removida. Visão **MRJ** = placeholder DSGov (`.ds-card` "MRJ" + "Visão em desenvolvimento."),
+    só o nome — conteúdo a definir; `Atualizar`/`Exportar CSV` ocultos nessa visão.
+  - **Agregações (`/agregacoes`, `/agregacoes/ciclos`, `/agregacoes/analise`):** novo
+    `src/components/AgregacoesNav.tsx` — barra `[ Ciclos | Análise ]` (links, ativo por
+    `usePathname`), **só para usuário logado** (Ciclos/Análise são SPLE-only), adicionada abaixo do
+    cabeçalho nas 3 rotas (na Análise, antes do banner de ciclo ativo).
+  - **Sidebar (`src/components/Sidebar.tsx`):** removidos os sub-itens **Ciclos** e **Análise**;
+    **"Agregações"** virou link simples para `/agregacoes` (fim do accordion). Removida toda a
+    máquina de accordion órfã (`agregOpen` + `useEffect` + `openByParent` + guard de sub-itens +
+    botão-toggle + chevron) e os campos não usados da interface (`sub`/`parent`/`disabled`/
+    `dividerBefore`) com seus blocos (badge "em dev"/divider). Imports órfãos limpos
+    (`Fragment`, `BarChart2`, `History`, `ChevronRight`). **Estado ativo** redefinido para o URL
+    compartilhado: "Eleitores por seção" (público) ativo em `/agregacoes` exato; "Agregações"
+    (SPLE) ativo nas sub-rotas `/agregacoes/...`.
+  - Só tokens DSGov, sem hex. `npm run build` OK; deploys `firebase deploy --only hosting` em
+    produção ao longo da sessão (Estatística e Agregações). Sidebar também passou a ter "Gestão
+    Orçamentária" como link único — ver Log da Frente C (mesma data).
+  - **Ajuste de navegação (mesmo dia):** "Agregações" (sidebar) passou a apontar para
+    **`/agregacoes/ciclos`** (não mais `/agregacoes`); a barra `[ Ciclos | Análise ]` foi **removida
+    da overview `/agregacoes`** (Eleitores por seção) e fica **só** em `/agregacoes/ciclos` e
+    `/agregacoes/analise`. `isAgregSple` redefinido para `group==='sple' &&
+    href.startsWith('/agregacoes')` (ativo em qualquer sub-rota); "Eleitores por seção" segue ativo
+    no `/agregacoes` exato, sem barra.
 - **2026-06-17 (visão "Pontos de Apoio" na Estatística — CSV público ao vivo)**: a página `/`
   (`CadastroClient.tsx`) ganhou um **seletor segmentado** de 2 opções no topo da área de dados que
   alterna **toda a área** (título H1, botão Exportar e conteúdo):
@@ -317,6 +357,11 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-18 (barra de navegação `GestaoNav` na página Dados SERPRO)**: a rota
+  `/gestao-orcamentaria/dados-serpro` recebeu, abaixo do cabeçalho, a nova barra de links
+  `<GestaoNav>` (com `Dados SERPRO` em estado ativo). Detalhe completo da barra e do fim do submenu
+  no Log da Frente C (mesma data). Sem mudança de dados/coleção/rules. `npm run build` OK; deploy
+  de hosting em produção.
 - **2026-06-16 (botão "Atualizar dados" equiparado ao CLI + filtro exclusivo)**: três correções na
   página **Dados SERPRO** (`/gestao-orcamentaria/dados-serpro`, `OrcamentoClient.tsx`).
   - **Import por UI agora equivale ao `upload:opl-serpro`:** o `confirmImport` passou a (1) ler o
@@ -503,6 +548,24 @@ abordagem mais pragmática. **Prefixo de coleção sugerido:** `opl_` (ex.: `opl
 
 ### Log de execução (Gestão SPLE)
 
+- **2026-06-18 (navegação da Gestão Orçamentária em barra horizontal; fim do submenu)**: novo
+  `src/components/GestaoNav.tsx` substitui o submenu da sidebar por uma **barra de links** no topo
+  das 3 rotas de `/gestao-orcamentaria` (overview, execução, dados-serpro), no mesmo padrão
+  segmentado da Estatística. Três grupos, ativo por `usePathname`:
+  - `[ Por Setor | Por PI ]` — na própria Visão consolidada funciona como toggle de estado
+    (`grupoView`, via prop `onGrupoChange`); nas outras rotas vira link para `/gestao-orcamentaria`.
+  - `[ Lançamento das unidades · em dev | Aprovação do orçamento · em dev | Execução do orçamento ]`
+    — fases em dev são spans não-clicáveis com badge; Execução é link p/ `/gestao-orcamentaria/execucao`.
+  - `[ Dados SERPRO ]` — link p/ `/gestao-orcamentaria/dados-serpro` (Frente B).
+  - **Decisão fechada:** manter rotas (barra é navegação por links, URLs preservadas) — não houve
+    merge em página única. A barra anterior dentro do `<main>` da overview (toggle Por Setor/Por PI)
+    foi substituída pelo `<GestaoNav>`; também troquei os valores arbitrários `bg-[var(--accent-soft)]`
+    pelos tokens DSGov.
+  - **Sidebar:** "Gestão Orçamentária" virou **link único** para `/gestao-orcamentaria` (sub-itens
+    Visão geral/Lançamento/Aprovação/Execução/Dados SERPRO removidos; accordion `gestao` e imports
+    de ícone órfãos limpos — detalhe completo no Log da Frente A, mesma data).
+  - Só tokens DSGov, sem hex. `npm run build` OK; `firebase deploy --only hosting` em produção
+    (`https://eleicoes2026-dadoszonas.web.app/gestao-orcamentaria`).
 - **2026-06-16 (coluna ITEM DA DESPESA: descrição + código/SEI)**: na tabela da Execução
   (`/gestao-orcamentaria/execucao`, `SpleClient.tsx`), a coluna **Item da Despesa** passou a exibir
   a **descrição** (sem o código de natureza, que aparece embaixo) na 1ª linha, quebrando linha

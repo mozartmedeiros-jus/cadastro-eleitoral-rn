@@ -13,6 +13,7 @@ import {
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
+import GestaoNav from '@/components/GestaoNav';
 
 interface Item {
   id: string;
@@ -211,6 +212,8 @@ export default function SpleClient() {
           </div>
         </div>
       </header>
+
+      <GestaoNav />
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* Indicadores */}
