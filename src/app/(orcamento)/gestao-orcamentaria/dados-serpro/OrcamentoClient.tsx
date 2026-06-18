@@ -30,6 +30,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from 'next-themes';
 import { parseEmpenhos } from '@/lib/opl-serpro-xlsx';
+import GestaoNav from '@/components/GestaoNav';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -529,6 +530,8 @@ export default function OrcamentoClient() {
           </div>
         </div>
       </header>
+
+      <GestaoNav />
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* Indicadores */}

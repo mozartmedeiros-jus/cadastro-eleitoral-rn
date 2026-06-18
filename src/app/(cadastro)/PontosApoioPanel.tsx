@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, ChevronDown, ChevronLeft, ChevronRight, MapPin, X, Radio, Check, Plus, Pencil, RefreshCw, AlertCircle, Loader2,
+  Search, ChevronDown, ChevronLeft, ChevronRight, MapPin, X, Radio, Check, Plus, Pencil, AlertCircle, Loader2,
 } from 'lucide-react';
 import { PontoApoio, fetchPontos } from '@/lib/pontos-apoio-csv';
 
@@ -39,9 +39,11 @@ function ApoioBadge({ value }: { value: string }) {
 export default function PontosApoioPanel({
   url,
   onFilteredChange,
+  onControlsChange,
 }: {
   url: string;
   onFilteredChange: (rows: PontoApoio[]) => void;
+  onControlsChange?: (c: { lastUpdated: Date | null; refreshing: boolean; refresh: () => void }) => void;
 }) {
   const [pontos, setPontos] = useState<PontoApoio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,11 @@ export default function PontosApoioPanel({
   useEffect(() => {
     load(true);
   }, [load]);
+
+  // Eleva os controles (Atualizar + carimbo) para a barra de controle do CadastroClient
+  useEffect(() => {
+    onControlsChange?.({ lastUpdated, refreshing, refresh: () => load() });
+  }, [lastUpdated, refreshing, load, onControlsChange]);
 
   const zonas = useMemo(
     () => Array.from(new Set(pontos.map((p) => p.zona).filter(Boolean)))
@@ -162,24 +169,6 @@ export default function PontosApoioPanel({
 
   return (
     <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-      {/* ── Barra de atualização ──────────────────────────────────── */}
-      <div className="flex items-center justify-end gap-3 mb-3">
-        {lastUpdated && (
-          <span className="text-[12px] text-ink-4">
-            atualizado às{' '}
-            <span className="num">{lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-          </span>
-        )}
-        <button
-          onClick={() => load()}
-          disabled={refreshing}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
-          Atualizar
-        </button>
-      </div>
-
       {/* ── KPIs ────────────────────────────────────────────────── */}
       <SectionHead title="Indicadores" hint="conforme filtros aplicados" />
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-7">

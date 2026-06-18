@@ -11,6 +11,7 @@ import { auth, db, makeRowId } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { doc, setDoc, serverTimestamp, collection, onSnapshot, writeBatch, getDoc, Timestamp, deleteField } from 'firebase/firestore';
 import meta from '@data/meta.json';
+import AgregacoesNav from '@/components/AgregacoesNav';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
@@ -625,6 +626,8 @@ export default function AgregacoesClient({ initialData }: { initialData: Locatio
 
         </div>
       </header>
+
+      <AgregacoesNav />
 
       {/* ── Banner de ciclo ativo ────────────────────────────────── */}
       {cicloAtivo && (

@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Download,
   MapPin, Eye, EyeOff, ArrowUpDown,
-  X, BarChart3
+  X, BarChart3, RefreshCw
 } from 'lucide-react';
 import {
   collection, doc, onSnapshot, setDoc, serverTimestamp
@@ -87,8 +87,12 @@ function SectionHead({ title, hint }: { title: string; hint?: string }) {
 export default function CadastroClient({ initialData }: { initialData: LocationData[] }) {
 
   // View toggle: visão "Pessoal de apoio" (default) vs. "Pontos de Apoio" (CSV)
-  const [view, setView] = useState<'pessoal' | 'pontos'>('pessoal');
+  const [view, setView] = useState<'pessoal' | 'pontos' | 'mrj'>('pessoal');
   const [pontosFiltered, setPontosFiltered] = useState<PontoApoio[]>([]);
+  // Controles do painel de Pontos de Apoio elevados para a barra de controle (Atualizar + carimbo)
+  const [pontosControls, setPontosControls] = useState<{
+    lastUpdated: Date | null; refreshing: boolean; refresh: () => void;
+  } | null>(null);
 
   // Filter States
   const [searchLocal, setSearchLocal] = useState('');
@@ -498,50 +502,89 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
               <BarChart3 size={20} className="text-accent shrink-0" />
               {view === 'pessoal'
                 ? 'Estatísticas de Locais de Votação'
-                : 'Locais de Ponto de Apoio e Transmissão descentralizada'}
+                : view === 'pontos'
+                  ? 'Locais de Ponto de Apoio e Transmissão descentralizada'
+                  : 'MRJ'}
             </h1>
           </div>
+        </div>
+      </header>
 
-          <div className="flex items-center gap-2.5">
-            {/* Seletor segmentado de visão */}
-            <div role="group" aria-label="Selecionar visão" className="inline-flex rounded-[6px] border border-border-strong bg-surface p-0.5">
-              <button
-                type="button"
-                aria-pressed={view === 'pessoal'}
-                onClick={() => setView('pessoal')}
-                className={`h-[34px] px-3 rounded-[4px] text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
-                  view === 'pessoal'
-                    ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
-                    : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
-                }`}
-              >
-                Pessoal de apoio
-              </button>
-              <button
-                type="button"
-                aria-pressed={view === 'pontos'}
-                onClick={() => setView('pontos')}
-                className={`h-[34px] px-3 rounded-[4px] text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
-                  view === 'pontos'
-                    ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
-                    : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
-                }`}
-              >
-                Pontos de Apoio
-              </button>
-            </div>
+      {/* ── Barra de controle: seletor (esq.) + ações (dir.) ─────────── */}
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 flex flex-wrap items-center justify-between gap-2.5">
+        {/* Seletor segmentado de visão (3 itens de mesma largura) */}
+        <div role="group" aria-label="Selecionar visão" className="inline-grid grid-cols-3 rounded-[6px] border border-border-strong bg-surface p-0.5">
+          <button
+            type="button"
+            aria-pressed={view === 'pessoal'}
+            onClick={() => setView('pessoal')}
+            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+              view === 'pessoal'
+                ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
+                : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
+            }`}
+          >
+            Pessoal de apoio
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === 'pontos'}
+            onClick={() => setView('pontos')}
+            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+              view === 'pontos'
+                ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
+                : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
+            }`}
+          >
+            Pontos de Apoio
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === 'mrj'}
+            onClick={() => setView('mrj')}
+            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+              view === 'mrj'
+                ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
+                : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
+            }`}
+          >
+            MRJ
+          </button>
+        </div>
 
-            {/* Exportar CSV */}
+        {/* Ações à direita: Atualizar (só Pontos de Apoio) + Exportar CSV */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {view === 'pontos' && pontosControls && (
+            <>
+              {pontosControls.lastUpdated && (
+                <span className="text-[12px] text-ink-4">
+                  atualizado às{' '}
+                  <span className="num">{pontosControls.lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                </span>
+              )}
+              <button
+                onClick={pontosControls.refresh}
+                disabled={pontosControls.refreshing}
+                className="inline-flex items-center gap-1.5 h-[38px] px-3.5 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw size={14} className={pontosControls.refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
+                Atualizar
+              </button>
+            </>
+          )}
+
+          {/* Exportar CSV (oculto na visão MRJ — sem dados ainda) */}
+          {view !== 'mrj' && (
             <button
               onClick={view === 'pessoal' ? exportCSV : exportPontosCSV}
               aria-label="Exportar CSV"
               className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
             >
-              <Download size={14} /> <span className="hidden sm:inline">Exportar CSV</span>
+              <Download size={14} /> <span>Exportar CSV</span>
             </button>
-          </div>
+          )}
         </div>
-      </header>
+      </div>
 
       {view === 'pessoal' && (
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
@@ -1041,7 +1084,16 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       )}
 
       {view === 'pontos' && (
-        <PontosApoioPanel url={PONTOS_CSV_URL} onFilteredChange={setPontosFiltered} />
+        <PontosApoioPanel url={PONTOS_CSV_URL} onFilteredChange={setPontosFiltered} onControlsChange={setPontosControls} />
+      )}
+
+      {view === 'mrj' && (
+        <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <div className="ds-card p-14 flex flex-col items-center justify-center gap-2 text-center">
+            <div className="text-[14px] font-bold text-ink">MRJ</div>
+            <p className="text-[12.5px] text-ink-3">Visão em desenvolvimento.</p>
+          </div>
+        </main>
       )}
     </div>
   );
