@@ -118,6 +118,7 @@ export default function MrjPanel({
 
   const kpis = useMemo(() => ({
     totalLocais: filtered.length,
+    totalZonas: new Set(filtered.map((m) => m.zona).filter(Boolean)).size,
     totalPrimeiro: filtered.filter((m) => m.primeiroTurno).length,
     totalSegundo: filtered.filter((m) => m.segundoTurno).length,
     totalSegundoSemVotacao: filtered.filter((m) => m.segundoTurnoSemVotacao).length,
@@ -164,12 +165,18 @@ export default function MrjPanel({
     <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
       {/* ── KPIs ────────────────────────────────────────────────── */}
       <SectionHead title="Indicadores" hint="conforme filtros aplicados" />
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-7">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-7">
         <div className="relative ds-card p-[18px] overflow-hidden">
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Total de locais</div>
           <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-accent">{kpis.totalLocais}</div>
           <div className="mt-[7px] text-[11px] text-ink-4">locais listados</div>
+        </div>
+        <div className="relative ds-card p-[18px] overflow-hidden">
+          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Zonas</div>
+          <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalZonas}</div>
+          <div className="mt-[7px] text-[11px] text-ink-4">zonas distintas</div>
         </div>
         <div className="relative ds-card p-[18px] overflow-hidden">
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
