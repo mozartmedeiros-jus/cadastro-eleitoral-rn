@@ -104,6 +104,9 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
     (senão, claro padrão). Lembrete: boundaries de erro **só atuam em build de produção**.
   - `npm run build` OK (TypeScript sem erros); `firebase deploy --only hosting` (120 arquivos) em
     produção (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Verificação manual em produção (2026-06-19):** simulado o cenário via DevTools → Request
+    conditions (Block do chunk `/_next/static/chunks/…js` da rota `/agregacoes/ciclos`); o reload
+    automático **disparou como esperado** — auto-cura confirmada.
   - **Git:** **PR #19** (`feat/global-error-boundary`) — **aberto** (não mergeado); confirmar
     `state: MERGED` via `gh` antes de apagar a branch.
 - **2026-06-18 (barra de controle na Estatística + 3ª visão "MRJ"; barra de navegação nas Agregações)**:
