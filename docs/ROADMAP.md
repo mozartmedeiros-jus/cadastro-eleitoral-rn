@@ -87,6 +87,24 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-19 (largura-padrão dos botões nas barras segmentadas — cobre as 3 frentes)**: as
+  barras segmentadas de **Ciclos/Análise** (`AgregacoesNav.tsx`) e **Gestão Orçamentária**
+  (`GestaoNav.tsx`) passaram a usar **a largura do botão da Estatística (home) como piso**, a
+  pedido do usuário ("usar a largura como padrão; se o texto for maior, no máximo permitido sem
+  quebrar linha").
+  - **Mecanismo:** novo token `--seg-w: 7.875rem` (126px = largura natural de "Pessoal de apoio")
+    em `globals.css`; cada grupo trocou `grid-cols-N` por
+    `grid-cols-[repeat(N,minmax(var(--seg-w),1fr))]` — piso de largura por coluna, igualdade
+    dentro do grupo (`1fr`) e crescimento para rótulos maiores. `whitespace-nowrap` somado ao
+    `SEG` (e às 3 classes inline da home) impede quebra de linha quando o rótulo excede o piso.
+  - **Editados:** `globals.css` (token), `AgregacoesNav.tsx`, `GestaoNav.tsx` (3 grupos) e
+    `CadastroClient.tsx` (seletor da home; só ancora o padrão — a home segue ~126px, 0,1px de
+    diferença, imperceptível). Só tokens/utilitários DSGov, sem hex; nenhuma rota/dado/regra tocada.
+  - **Verificação (Chrome/CDP, medição de larguras):** home 126px (idêntica); Ciclos/Análise e
+    Por Setor/Por PI = 126px; grupo de fases do SPLE igual a 231,6px (cresce além do piso) em **1
+    linha** (altura 34px); Dados SERPRO 126px. `npm run build` OK.
+  - **Git:** **PR #22** (`feat/largura-padrao-barras-segmentadas`) aberto. Deploy de hosting
+    **pendente** (não solicitado nesta sessão).
 - **2026-06-19 (visão "MRJ — Mesas Receptoras de Justificativa" na Estatística)**: a 3ª visão do
   seletor da página `/` (antes placeholder "Visão em desenvolvimento") virou tela real, **clone fiel
   do padrão "Pontos de Apoio"** — alimentada por **CSV público de planilha Google buscado ao vivo**

@@ -43,6 +43,10 @@
   --danger-border: #efc4bf;
 
   --shadow-menu: 0 6px 20px -6px rgba(20, 30, 45, 0.18);
+
+  /* Piso de largura dos botões das barras segmentadas (Estatística / Agregações / Gestão).
+     Casa com a largura do botão "Pessoal de apoio" da home; rótulos maiores expandem além. */
+  --seg-w: 7.875rem;
 }
 
 /* ── Tokens — ESCURO (.dark) ──────────────────────────────────── */

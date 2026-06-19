@@ -551,12 +551,12 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       {/* ── Barra de controle: seletor (esq.) + ações (dir.) ─────────── */}
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 flex flex-wrap items-center justify-between gap-2.5">
         {/* Seletor segmentado de visão (3 itens de mesma largura) */}
-        <div role="group" aria-label="Selecionar visão" className="inline-grid grid-cols-3 rounded-[6px] border border-border-strong bg-surface p-0.5">
+        <div role="group" aria-label="Selecionar visão" className="inline-grid grid-cols-[repeat(3,minmax(var(--seg-w),1fr))] rounded-[6px] border border-border-strong bg-surface p-0.5">
           <button
             type="button"
             aria-pressed={view === 'pessoal'}
             onClick={() => setView('pessoal')}
-            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold whitespace-nowrap transition-colors motion-reduce:transition-none ${
               view === 'pessoal'
                 ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
                 : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
@@ -568,7 +568,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             type="button"
             aria-pressed={view === 'pontos'}
             onClick={() => setView('pontos')}
-            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold whitespace-nowrap transition-colors motion-reduce:transition-none ${
               view === 'pontos'
                 ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
                 : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
@@ -580,7 +580,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
             type="button"
             aria-pressed={view === 'mrj'}
             onClick={() => setView('mrj')}
-            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold transition-colors motion-reduce:transition-none ${
+            className={`h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold whitespace-nowrap transition-colors motion-reduce:transition-none ${
               view === 'mrj'
                 ? 'bg-accent-soft text-accent-ink border border-accent-soft-border'
                 : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
