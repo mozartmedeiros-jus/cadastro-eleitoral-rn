@@ -14,6 +14,8 @@ import { useAuth } from '@/lib/AuthContext';
 import meta from '@data/meta.json';
 import { PontoApoio, PONTOS_CSV_URL } from '@/lib/pontos-apoio-csv';
 import PontosApoioPanel from './PontosApoioPanel';
+import { MesaMrj, MRJ_CSV_URL } from '@/lib/mrj-csv';
+import MrjPanel from './MrjPanel';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
 const DATA_REFERENCIA = meta.dataReferencia ? meta.dataReferencia.split('-').reverse().join('/') : null;
@@ -91,6 +93,11 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   const [pontosFiltered, setPontosFiltered] = useState<PontoApoio[]>([]);
   // Controles do painel de Pontos de Apoio elevados para a barra de controle (Atualizar + carimbo)
   const [pontosControls, setPontosControls] = useState<{
+    lastUpdated: Date | null; refreshing: boolean; refresh: () => void;
+  } | null>(null);
+  // Idem para a visão MRJ (CSV de Mesas Receptoras de Justificativa)
+  const [mrjFiltered, setMrjFiltered] = useState<MesaMrj[]>([]);
+  const [mrjControls, setMrjControls] = useState<{
     lastUpdated: Date | null; refreshing: boolean; refresh: () => void;
   } | null>(null);
 
@@ -435,6 +442,34 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     document.body.removeChild(link);
   };
 
+  const exportMrjCSV = () => {
+    const headers = ['Zona', 'Municipio', 'Local', 'Endereco', '1o Turno', '2o Turno', '2o Turno (sem votacao)'];
+    const csvRows = [headers.join(';')];
+
+    mrjFiltered.forEach(m => {
+      const row = [
+        `"${m.zona.replace(/"/g, '""')}"`,
+        `"${m.municipio.replace(/"/g, '""')}"`,
+        `"${m.local.replace(/"/g, '""')}"`,
+        `"${m.endereco.replace(/"/g, '""')}"`,
+        m.primeiroTurno ? 'Sim' : '',
+        m.segundoTurno ? 'Sim' : '',
+        m.segundoTurnoSemVotacao ? 'Sim' : '',
+      ];
+      csvRows.push(row.join(';'));
+    });
+
+    const csvContent = '﻿' + csvRows.join('\n'); // BOM para Excel (UTF-8)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `mrj_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
 
@@ -481,6 +516,9 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const hasFilter = searchLocal || selectedZona || selectedMuni || selectedSituacao;
 
+  // Controles "Atualizar" (carimbo + refresh) elevados pelo painel da visão ativa (Pontos/MRJ).
+  const viewControls = view === 'pontos' ? pontosControls : view === 'mrj' ? mrjControls : null;
+
   return (
     <div className="min-h-full bg-bg text-ink pb-14">
       {/* ── Top bar ─────────────────────────────────────────────── */}
@@ -504,7 +542,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                 ? 'Estatísticas de Locais de Votação'
                 : view === 'pontos'
                   ? 'Locais de Ponto de Apoio e Transmissão descentralizada'
-                  : 'MRJ'}
+                  : 'MRJ — Mesas Receptoras de Justificativa por Zona'}
             </h1>
           </div>
         </div>
@@ -552,37 +590,35 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
           </button>
         </div>
 
-        {/* Ações à direita: Atualizar (só Pontos de Apoio) + Exportar CSV */}
+        {/* Ações à direita: Atualizar (visões alimentadas por CSV: Pontos de Apoio e MRJ) + Exportar CSV */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {view === 'pontos' && pontosControls && (
+          {viewControls && (
             <>
-              {pontosControls.lastUpdated && (
+              {viewControls.lastUpdated && (
                 <span className="text-[12px] text-ink-4">
                   atualizado às{' '}
-                  <span className="num">{pontosControls.lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="num">{viewControls.lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                 </span>
               )}
               <button
-                onClick={pontosControls.refresh}
-                disabled={pontosControls.refreshing}
+                onClick={viewControls.refresh}
+                disabled={viewControls.refreshing}
                 className="inline-flex items-center gap-1.5 h-[38px] px-3.5 rounded-[6px] border border-border-strong bg-surface text-ink-2 text-[13px] font-semibold hover:bg-surface-3 hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <RefreshCw size={14} className={pontosControls.refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
+                <RefreshCw size={14} className={viewControls.refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
                 Atualizar
               </button>
             </>
           )}
 
-          {/* Exportar CSV (oculto na visão MRJ — sem dados ainda) */}
-          {view !== 'mrj' && (
-            <button
-              onClick={view === 'pessoal' ? exportCSV : exportPontosCSV}
-              aria-label="Exportar CSV"
-              className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
-            >
-              <Download size={14} /> <span>Exportar CSV</span>
-            </button>
-          )}
+          {/* Exportar CSV — handler por visão */}
+          <button
+            onClick={view === 'pessoal' ? exportCSV : view === 'pontos' ? exportPontosCSV : exportMrjCSV}
+            aria-label="Exportar CSV"
+            className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
+          >
+            <Download size={14} /> <span>Exportar CSV</span>
+          </button>
         </div>
       </div>
 
@@ -1088,12 +1124,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       )}
 
       {view === 'mrj' && (
-        <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="ds-card p-14 flex flex-col items-center justify-center gap-2 text-center">
-            <div className="text-[14px] font-bold text-ink">MRJ</div>
-            <p className="text-[12.5px] text-ink-3">Visão em desenvolvimento.</p>
-          </div>
-        </main>
+        <MrjPanel url={MRJ_CSV_URL} onFilteredChange={setMrjFiltered} onControlsChange={setMrjControls} />
       )}
     </div>
   );
