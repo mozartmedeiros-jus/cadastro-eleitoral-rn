@@ -87,6 +87,29 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-19 (visão "MRJ — Mesas Receptoras de Justificativa" na Estatística)**: a 3ª visão do
+  seletor da página `/` (antes placeholder "Visão em desenvolvimento") virou tela real, **clone fiel
+  do padrão "Pontos de Apoio"** — alimentada por **CSV público de planilha Google buscado ao vivo**
+  (aba `gid=556434340`), sem Firestore/ingestão, compatível com export estático.
+  - **Criados:** `src/lib/mrj-csv.ts` (`interface MesaMrj`, `MRJ_CSV_URL`, `SEM_MRJ`/`temMrj`,
+    `fetchMrj` — parse por índice; **todas** as colunas de turno parseadas como booleano `=== 'TRUE'`)
+    e `src/app/(cadastro)/MrjPanel.tsx` (sem auth gate: loading/erro DSGov, KPIs, filtros
+    zona/município/turno + busca, tabela com badges "Sim/—", linhas "NÃO HAVERÁ MRJ" com badge
+    neutro, paginação).
+  - **Editado (cirúrgico):** `CadastroClient.tsx` — H1 "MRJ — Mesas Receptoras de Justificativa por
+    Zona", `exportMrjCSV`, barra de controle unificada (`viewControls`: Atualizar/Exportar nas visões
+    alimentadas por CSV) e render do `MrjPanel` no lugar do placeholder. **Não** tocou na coleção
+    `mrj`/campo `mesaMrj`/coluna "Mesa MRJ" da visão Pessoal.
+  - **Decisões de produto:** KPI **"Total de locais"** conta todas as linhas (inclui "NÃO HAVERÁ
+    MRJ"); coluna 6 `2º TURNO SEM VOTAÇÃO NO RN` é booleano `TRUE/FALSE` (corrigido bug que contava
+    "FALSE" como verdadeiro — passou de 10 para 1, só a zona 50); linhas sem MRJ com texto normal +
+    badge neutro em maiúsculas, sem ícone.
+  - **Verificação:** `/verify` via Chrome headless/CDP (H1, KPIs, tabela, badges, filtros e regressão
+    zero nas visões Pessoal/Pontos; contagem do app = linhas do CSV ao vivo). `npm run build` OK;
+    múltiplos `firebase deploy --only hosting` em produção ao longo da sessão. Prompt-fonte (local,
+    gitignored): `_arquivos/mrj/implementar-visao-mrj.md`.
+  - **Git:** **PR #21** (`feat/visao-mrj-csv`) — aberto; confirmar `state: MERGED` via `gh` antes de
+    apagar a branch.
 - **2026-06-19 (docs: arquitetura em camadas + material de apresentação para estagiários)**: dois
   documentos novos em `docs/`, **sem mudança de código de produção**.
   - **`docs/ARQUITETURA.md`** — visão **em camadas** unificando a stack e os métodos de modelagem de
