@@ -103,8 +103,10 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
   - **Verificação (Chrome/CDP, medição de larguras):** home 126px (idêntica); Ciclos/Análise e
     Por Setor/Por PI = 126px; grupo de fases do SPLE igual a 231,6px (cresce além do piso) em **1
     linha** (altura 34px); Dados SERPRO 126px. `npm run build` OK.
-  - **Git:** **PR #22** (`feat/largura-padrao-barras-segmentadas`) aberto. Deploy de hosting
-    **pendente** (não solicitado nesta sessão).
+  - **Deploy:** `firebase deploy --only hosting` (120 arquivos) em produção
+    (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** integrado à `main` via **PR #22** (`feat/largura-padrao-barras-segmentadas`), merge
+    `184fe94` (state MERGED); branch de feature removida (local e remota).
 - **2026-06-19 (visão "MRJ — Mesas Receptoras de Justificativa" na Estatística)**: a 3ª visão do
   seletor da página `/` (antes placeholder "Visão em desenvolvimento") virou tela real, **clone fiel
   do padrão "Pontos de Apoio"** — alimentada por **CSV público de planilha Google buscado ao vivo**
