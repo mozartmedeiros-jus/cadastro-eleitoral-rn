@@ -108,8 +108,8 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
     zero nas visões Pessoal/Pontos; contagem do app = linhas do CSV ao vivo). `npm run build` OK;
     múltiplos `firebase deploy --only hosting` em produção ao longo da sessão. Prompt-fonte (local,
     gitignored): `_arquivos/mrj/implementar-visao-mrj.md`.
-  - **Git:** **PR #21** (`feat/visao-mrj-csv`) — aberto; confirmar `state: MERGED` via `gh` antes de
-    apagar a branch.
+  - **Git:** integrado à `main` via **PR #21** (`feat/visao-mrj-csv`), merge `afe1116`
+    (state MERGED); branch de feature removida (local e remota).
 - **2026-06-19 (docs: arquitetura em camadas + material de apresentação para estagiários)**: dois
   documentos novos em `docs/`, **sem mudança de código de produção**.
   - **`docs/ARQUITETURA.md`** — visão **em camadas** unificando a stack e os métodos de modelagem de
