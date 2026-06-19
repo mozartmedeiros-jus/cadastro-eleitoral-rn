@@ -87,6 +87,25 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-19 (boundary de erro raiz — auto-cura de chunk obsoleto pós-deploy)**: a tela
+  **"This page couldn't load / Reload to try again, or go back."** (relatada em `/agregacoes/ciclos`)
+  foi diagnosticada como o **`DefaultGlobalError` embutido do Next** (ramo de erro de cliente: sem
+  `digest`, com botão Back), não um componente nosso. Causa-raiz: sendo **export estático**, navegar
+  client-side numa **aba com build antigo** após um deploy busca o chunk pelo hash anterior (404 →
+  **ChunkLoadError**) e, como o app **não tinha nenhum boundary de erro**, isso escalava para o
+  fallback de tela cheia do Next (derrubando a shell). Reload sempre resolvia (confirmado) — bate com
+  a nota "chunk obsoleto pós-deploy" do Preâmbulo.
+  - **Correção (1 arquivo novo):** `src/app/global-error.tsx` substitui o `DefaultGlobalError`.
+    **Auto-cura** — detecta `ChunkLoadError` (regex sobre `name`/`message`) e faz **um**
+    `location.reload()`, com guarda anti-loop de 10s via `sessionStorage`; abas antigas se recuperam
+    sozinhas. Para os demais erros, **card DSGov/PT-BR** (`.ds-card`, ícone `AlertTriangle` em `warn`,
+    botões **Recarregar**/**Voltar**) — só tokens, sem hex, com `motion-reduce`. Como o boundary raiz
+    substitui o `ThemeProvider`, lê `localStorage.theme` + `prefers-color-scheme` e aplica `.dark`
+    (senão, claro padrão). Lembrete: boundaries de erro **só atuam em build de produção**.
+  - `npm run build` OK (TypeScript sem erros); `firebase deploy --only hosting` (120 arquivos) em
+    produção (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** **PR #19** (`feat/global-error-boundary`) — **aberto** (não mergeado); confirmar
+    `state: MERGED` via `gh` antes de apagar a branch.
 - **2026-06-18 (barra de controle na Estatística + 3ª visão "MRJ"; barra de navegação nas Agregações)**:
   trabalho de padronização das barras horizontais segmentadas (padrão único: `inline-grid`, botão
   `h-[34px] px-3 rounded-[4px] text-center text-[12.5px] font-semibold`, ativo `bg-accent-soft`/
