@@ -87,6 +87,22 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-19 (docs: arquitetura em camadas + material de apresentação para estagiários)**: dois
+  documentos novos em `docs/`, **sem mudança de código de produção**.
+  - **`docs/ARQUITETURA.md`** — visão **em camadas** unificando a stack e os métodos de modelagem de
+    dados: apresentação (UI) → aplicação (lógica de cliente) → dados/modelagem (conceitual → lógico
+    relacional → físico relacional → físico NoSQL) → ingestão → infraestrutura. Referência rápida;
+    o canônico segue sendo este `ROADMAP.md`.
+  - **`docs/apresentacao-estagiarios.md`** — material didático para apresentação a estagiários, em
+    linguagem suave, formato **slide a slide + notas do apresentador** (26 slides). Duas visões:
+    **Parte 1** panorama do projeto (o que é, quem usa, três frentes, como um site funciona,
+    frontend, dados, hosting, site estático, design system, fluxo git→PR→deploy, glossário) e
+    **Parte 2** **passo a passo de construção** da feature "Pontos de Apoio" (objetivo → fonte CSV
+    ao vivo → formato do dado → lib de busca → estados da tela → KPIs/filtros → tabela/paginação/
+    badges → integração → design system → testar/publicar). Fatos da Parte 2 conferidos contra
+    `src/lib/pontos-apoio-csv.ts` e `src/app/(cadastro)/PontosApoioPanel.tsx`.
+  - **Git:** integrado à `main` via **PR #20** (`docs/material-estagiarios`), merge `bef3656`
+    (state MERGED); branch de feature removida (local e remota). Sem deploy (só docs).
 - **2026-06-19 (boundary de erro raiz — auto-cura de chunk obsoleto pós-deploy)**: a tela
   **"This page couldn't load / Reload to try again, or go back."** (relatada em `/agregacoes/ciclos`)
   foi diagnosticada como o **`DefaultGlobalError` embutido do Next** (ramo de erro de cliente: sem
