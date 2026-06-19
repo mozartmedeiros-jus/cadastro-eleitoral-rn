@@ -175,15 +175,15 @@ export default function PontosApoioPanel({
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-7">
         <div className="relative ds-card p-[18px] overflow-hidden">
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Locais</div>
-          <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalLocais}</div>
-          <div className="mt-[7px] text-[11px] text-ink-4">pontos de apoio</div>
-        </div>
-        <div className="relative ds-card p-[18px] overflow-hidden">
-          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Zonas</div>
           <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalZonas}</div>
           <div className="mt-[7px] text-[11px] text-ink-4">zonas distintas</div>
+        </div>
+        <div className="relative ds-card p-[18px] overflow-hidden">
+          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Locais</div>
+          <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalLocais}</div>
+          <div className="mt-[7px] text-[11px] text-ink-4">pontos de apoio</div>
         </div>
         <div className="relative ds-card p-[18px] overflow-hidden">
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
