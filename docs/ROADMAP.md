@@ -87,6 +87,20 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-19 (KPI "Zonas" nas visões Pontos de Apoio e MRJ)**: a pedido do usuário, as duas
+  visões da Estatística alimentadas por CSV ao vivo ganharam um indicador **"Zonas"** = nº de
+  zonas distintas no conjunto **filtrado** (reage aos filtros, conforme o hint "conforme filtros
+  aplicados"); posicionado como **1º KPI** das duas grades.
+  - **Editados:** `PontosApoioPanel.tsx` (3 → 4 KPIs; grade `grid-cols-2 lg:grid-cols-4`) e
+    `MrjPanel.tsx` (4 → 5 KPIs; grade `grid-cols-2 lg:grid-cols-5`). Contagem via
+    `new Set(filtered.map(x => x.zona).filter(Boolean)).size`. Mesmo card DSGov, sem hex; em MRJ o
+    KPI líder "Zonas" usa o valor em `accent` (mantém o realce que era de "Total de locais").
+  - **Verificação (Chrome/CDP):** Pontos — Zonas 56 (Locais 244 · Transmissão 3 · Apoio 2); MRJ —
+    Zonas 31 (Total de locais 93 · 1º T 55 · 2º T 55 · 2º T s/votação 1). `npm run build` OK.
+  - **Deploy:** `firebase deploy --only hosting` (120 arquivos) em produção
+    (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** integrado à `main` via **PR #24** (`feat/kpi-zonas`), merge `7b6d734`
+    (state MERGED); branch de feature removida (local e remota).
 - **2026-06-19 (largura-padrão dos botões nas barras segmentadas — cobre as 3 frentes)**: as
   barras segmentadas de **Ciclos/Análise** (`AgregacoesNav.tsx`) e **Gestão Orçamentária**
   (`GestaoNav.tsx`) passaram a usar **a largura do botão da Estatística (home) como piso**, a
