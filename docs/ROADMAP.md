@@ -87,6 +87,19 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-22 (identificador sequencial na coluna Local da visão MRJ)**: a pedido do usuário, a
+  coluna **Local** da visão MRJ passou a exibir um código no formato **`"200 - NOME DO LOCAL"`**,
+  reiniciando em **200** a cada par **Zona + Município**.
+  - **`src/lib/mrj-csv.ts`:** `MesaMrj` ganhou `codigo?: number`; constante `COD_INICIAL = 200` e
+    helper `localComCodigo(m)` (fonte única do rótulo). A numeração roda no fim de `fetchMrj`
+    (`Map` por chave `zona||municipio`) — recalculada na 1ª carga e a cada **Atualizar**; só locais
+    com MRJ recebem código, linhas `SEM_MRJ` ("NÃO HAVERÁ MRJ") ficam sem. Sem Firestore/persistência
+    (visão é CSV ao vivo).
+  - **`MrjPanel.tsx`:** coluna Local usa `localComCodigo`; busca passa a casar também com o número.
+  - **`CadastroClient.tsx`:** `exportMrjCSV` aplica o mesmo prefixo na coluna Local.
+  - `npm run build` OK; `firebase deploy --only hosting` (120 arquivos) em produção
+    (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** **PR #26** (`feat/mrj-identificador-local`).
 - **2026-06-19 (KPI "Zonas" nas visões Pontos de Apoio e MRJ)**: a pedido do usuário, as duas
   visões da Estatística alimentadas por CSV ao vivo ganharam um indicador **"Zonas"** = nº de
   zonas distintas no conjunto **filtrado** (reage aos filtros, conforme o hint "conforme filtros
