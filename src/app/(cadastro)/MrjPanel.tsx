@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, ChevronDown, ChevronLeft, ChevronRight, MapPin, X, Check, AlertCircle, Loader2,
 } from 'lucide-react';
-import { MesaMrj, fetchMrj, temMrj } from '@/lib/mrj-csv';
+import { MesaMrj, fetchMrj, temMrj, localComCodigo } from '@/lib/mrj-csv';
 
 function SectionHead({ title, hint }: { title: string; hint?: string }) {
   return (
@@ -97,7 +97,8 @@ export default function MrjPanel({
     return mrj.filter((m) => {
       const matchSearch = q === '' ||
         m.local.toLowerCase().includes(q) ||
-        m.endereco.toLowerCase().includes(q);
+        m.endereco.toLowerCase().includes(q) ||
+        (m.codigo != null && String(m.codigo).includes(q));
       const matchZona = selectedZona === '' || m.zona === selectedZona;
       const matchMuni = selectedMuni === '' || m.municipio === selectedMuni;
       const matchTurno = selectedTurno === '' ||
@@ -299,7 +300,7 @@ export default function MrjPanel({
                           Não haverá MRJ
                         </span>
                       ) : (
-                        <span className="whitespace-normal break-words leading-snug font-medium text-ink">{m.local || '—'}</span>
+                        <span className="whitespace-normal break-words leading-snug font-medium text-ink">{localComCodigo(m) || '—'}</span>
                       )}
                     </td>
                     <td className="px-4 py-[11px] text-ink-2 min-w-[260px]">

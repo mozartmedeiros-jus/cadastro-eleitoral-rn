@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/AuthContext';
 import meta from '@data/meta.json';
 import { PontoApoio, PONTOS_CSV_URL } from '@/lib/pontos-apoio-csv';
 import PontosApoioPanel from './PontosApoioPanel';
-import { MesaMrj, MRJ_CSV_URL } from '@/lib/mrj-csv';
+import { MesaMrj, MRJ_CSV_URL, localComCodigo } from '@/lib/mrj-csv';
 import MrjPanel from './MrjPanel';
 
 // Data de referência dos dados (YYYY-MM-DD → dd/mm/yyyy)
@@ -450,7 +450,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
       const row = [
         `"${m.zona.replace(/"/g, '""')}"`,
         `"${m.municipio.replace(/"/g, '""')}"`,
-        `"${m.local.replace(/"/g, '""')}"`,
+        `"${localComCodigo(m).replace(/"/g, '""')}"`,
         `"${m.endereco.replace(/"/g, '""')}"`,
         m.primeiroTurno ? 'Sim' : '',
         m.segundoTurno ? 'Sim' : '',

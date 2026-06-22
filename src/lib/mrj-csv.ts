@@ -14,6 +14,16 @@ export interface MesaMrj {
   primeiroTurno: boolean;
   segundoTurno: boolean;
   segundoTurnoSemVotacao: boolean;
+  // Identificador sequencial por par (zona, município), iniciado em 200; ausente em SEM_MRJ.
+  codigo?: number;
+}
+
+// Início da numeração sequencial dos locais, por par (zona, município).
+export const COD_INICIAL = 200;
+
+// Rótulo do local com o identificador ("200 - NOME"); sem código (SEM_MRJ) retorna só o nome.
+export function localComCodigo(m: MesaMrj): string {
+  return m.codigo != null ? `${m.codigo} - ${m.local}` : m.local;
 }
 
 export const MRJ_CSV_URL =
@@ -65,6 +75,18 @@ export async function fetchMrj(url: string): Promise<MesaMrj[]> {
     }
 
     out.push({ zona, municipio, local, endereco, primeiroTurno, segundoTurno, segundoTurnoSemVotacao });
+  }
+
+  // Numeração sequencial por par (zona, município), iniciada em COD_INICIAL. Só locais com MRJ
+  // recebem código; linhas SEM_MRJ ficam sem. Map (não reset por mudança de linha) é robusto a
+  // grupos não contíguos no CSV.
+  const contadores = new Map<string, number>();
+  for (const m of out) {
+    if (!temMrj(m)) continue;
+    const chave = `${m.zona}||${m.municipio}`;
+    const proximo = contadores.get(chave) ?? COD_INICIAL;
+    m.codigo = proximo;
+    contadores.set(chave, proximo + 1);
   }
 
   return out;
