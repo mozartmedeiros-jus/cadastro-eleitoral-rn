@@ -488,6 +488,21 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-23 (gráfico "Evolução mensal" → barras horizontais, largura total, vazio com "todos")**:
+  a pedido do usuário, ajustes no gráfico da página Dados SERPRO (`OrcamentoClient.tsx`,
+  `chart.js`/`react-chartjs-2`):
+  - **Orientação:** `chartOptions.indexAxis: 'y'` (barras **horizontais**); eixos trocados — valores
+    no eixo **X** (`ticks.callback` = `formatNumber`, grid em `border`), categoria (mês) no eixo
+    **Y** (sem grid); `tooltip` passou a ler `context.parsed.x`.
+  - **Estado vazio:** com o filtro de mês em **"Todos os meses"** (`mesFilter === 'all'`) o gráfico
+    não renderiza (`{mesFilter !== 'all' && <Bar …/>}`) — card fica sem nada. Mostra um único mês
+    (o selecionado) por vez.
+  - **Layout:** o card passou de `p-4 md:p-6` para **`p-[18px]`** e o container interno foi de
+    `h-[300px]` para **`h-[144px]`** (≈2× a altura dos cards de KPI, referência pedida); largura
+    **total da linha** (mesmas margens dos KPIs — ambos filhos do mesmo `<main>`). Iteração: começou
+    em 1/3 da largura + `h-[72px]`, ajustado depois para largura total + altura dobrada.
+  - Só tokens DSGov (cores via `themeColors`/`getComputedStyle`), sem hex. `npm run build` OK;
+    `firebase deploy --only hosting` em produção (`https://eleicoes2026-dadoszonas.web.app`).
 - **2026-06-23 (botão "Atualizar dados" movido para a linha do `GestaoNav`)**: a pedido do usuário,
   padronização da posição da ação — o botão **"Atualizar dados"** (import `.xlsx` → `opl_empenhos`)
   saiu do `<header>` sticky e passou para a **linha da barra `GestaoNav`, colado à direita**
