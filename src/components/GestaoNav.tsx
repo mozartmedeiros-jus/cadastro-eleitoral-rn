@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -28,9 +29,11 @@ function DevBadge() {
 export default function GestaoNav({
   grupoView,
   onGrupoChange,
+  rightSlot,
 }: {
   grupoView?: Grupo;
   onGrupoChange?: (v: Grupo) => void;
+  rightSlot?: ReactNode;
 }) {
   const pathname = usePathname();
   const onOverview = pathname === '/gestao-orcamentaria';
@@ -81,6 +84,8 @@ export default function GestaoNav({
           Dados SERPRO
         </Link>
       </div>
+
+      {rightSlot && <div className="ml-auto flex items-center gap-2.5">{rightSlot}</div>}
     </div>
   );
 }

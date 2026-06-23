@@ -83,6 +83,14 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 **Pendências conhecidas**
 - `[ ]` Migração das coleções para prefixo `cad_` (futura, sem prazo).
+- `[ ]` **Botão "Atualizar dados do cadastro" pela UI** (frente futura, 2026-06-23): hoje os dados de
+  seção vivem em `data/cadastro_eleitoral.json` (JSON **estático**, gerado em build pelo CLI
+  `enriquecer:secoes` a partir de um `.xlsx` local). Como o site é export estático, um botão no
+  navegador não tem onde gravar. Pré-requisito: migrar esses dados para uma **coleção Firestore**
+  (ex.: `cad_secoes`) e apontar as 4 páginas que hoje importam o JSON via `@data/` (`/`, `/agregacoes`,
+  `/agregacoes/analise`, `/agregacoes/ciclos`) para ela; só então o botão de import (`.xlsx` →
+  Firestore, padrão SERPRO) pode entrar em `/agregacoes/ciclos` (página já com controle de acesso).
+  Relacionado à migração `cad_` acima.
 - `[x]` Critique de UI em `src/app/(cadastro)/agregacoes/analise/page.tsx` (`/impeccable critique` — resolvido).
 
 ### Log de execução (Cadastro)
@@ -480,6 +488,18 @@ Reuso sem mudança: `src/lib/firebase.ts`, `src/lib/AuthContext.tsx`, `src/compo
 
 ### Log de execução (Orçamento)
 
+- **2026-06-23 (botão "Atualizar dados" movido para a linha do `GestaoNav`)**: a pedido do usuário,
+  padronização da posição da ação — o botão **"Atualizar dados"** (import `.xlsx` → `opl_empenhos`)
+  saiu do `<header>` sticky e passou para a **linha da barra `GestaoNav`, colado à direita**
+  (`ml-auto`), visível **só na aba Dados SERPRO**.
+  - **`src/components/GestaoNav.tsx`:** nova prop opcional `rightSlot?: ReactNode`, renderizada num
+    `<div className="ml-auto …">` ao fim da linha. As demais chamadas (`SpleClient`,
+    `GestaoOrcamentariaClient`) não passam o slot → nada muda nelas (botão só na aba SERPRO).
+  - **`OrcamentoClient.tsx`:** removido o bloco do botão+input do header (o cabeçalho fica só com o
+    título); o mesmo botão e o `<input type="file" hidden>` foram passados como `rightSlot` do
+    `<GestaoNav>`. Altura do botão ajustada `38px → 34px` para casar com os segmentados da barra.
+    Toda a lógica de import (`fileInputRef`, `onFileChange`, `confirmImport`, modal) permanece intacta.
+  - `npm run build` OK (TypeScript sem erros). Sem mudança de dados/coleção/rules.
 - **2026-06-18 (barra de navegação `GestaoNav` na página Dados SERPRO)**: a rota
   `/gestao-orcamentaria/dados-serpro` recebeu, abaixo do cabeçalho, a nova barra de links
   `<GestaoNav>` (com `Dados SERPRO` em estado ativo). Detalhe completo da barra e do fim do submenu

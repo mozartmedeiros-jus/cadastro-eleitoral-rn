@@ -517,21 +517,23 @@ export default function OrcamentoClient() {
               Execução Orçamentária — Pleitos 2026
             </h1>
           </div>
+        </div>
+      </header>
 
-          <div className="flex items-center gap-2.5">
+      <GestaoNav
+        rightSlot={
+          <>
             <input ref={fileInputRef} type="file" accept=".xlsx" hidden onChange={onFileChange} />
             <button
               onClick={() => fileInputRef.current?.click()}
               aria-label="Atualizar dados a partir de uma nova planilha"
-              className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
+              className="inline-flex items-center gap-2 h-[34px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
             >
               <Upload size={14} /> <span className="hidden sm:inline">Atualizar dados</span>
             </button>
-          </div>
-        </div>
-      </header>
-
-      <GestaoNav />
+          </>
+        }
+      />
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* Indicadores */}
