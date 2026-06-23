@@ -415,7 +415,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   };
 
   const exportPontosCSV = () => {
-    const headers = ['Zona', 'Municipio', 'Local', 'Endereco', 'Funcionamento', 'Transmissao', 'Apoio'];
+    const headers = ['Zona', 'Municipio', 'Local', 'Endereco', 'Funcionamento', 'Apoio', 'Transmissao'];
     const csvRows = [headers.join(';')];
 
     pontosFiltered.forEach(p => {
@@ -425,8 +425,8 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
         `"${p.local.replace(/"/g, '""')}"`,
         `"${p.endereco.replace(/"/g, '""')}"`,
         `"${p.funcionamento.replace(/"/g, '""')}"`,
-        p.transmissao ? 'Sim' : '',
         `"${p.apoio.replace(/"/g, '""')}"`,
+        p.transmissao ? 'Sim' : '',
       ];
       csvRows.push(row.join(';'));
     });
