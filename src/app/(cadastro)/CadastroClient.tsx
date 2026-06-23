@@ -322,6 +322,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     return {
       totalLocais: filteredData.length,
       totalSecoes,
+      totalMrv,
       totalMesarios: totalMrv * 4,
       totalAdministradores,
       totalCoordAcess,
@@ -473,7 +474,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
 
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
 
-  // KPIs base (5 destaque) e calculados (8 secundários) — só apresentação
+  // KPIs base (5 destaque) e calculados (10 secundários, 1 por coluna da tabela) — só apresentação
   const baseKpis = [
     { label: 'Zonas', value: kpis.uniqueZonas, sub: 'com seções ativas', accent: false },
     { label: 'Municípios', value: kpis.uniqueMunis, sub: 'com seções ativas', accent: false },
@@ -481,12 +482,14 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     { label: 'Total de Seções', value: formatNumber(kpis.totalSecoes), sub: 'seções eleitorais', accent: false },
     { label: 'Eleitores Aptos', value: formatNumber(kpis.totalAptos), sub: 'total de cidadãos', accent: true },
   ];
+  // Ordem espelha as colunas da tabela (1 KPI por coluna de dimensionamento)
   const calcKpis = [
+    { label: 'Total Agregações', value: formatNumber(kpis.totalAgregacoes), sub: 'informado por admin' },
+    { label: 'MRV', value: formatNumber(kpis.totalMrv), sub: 'Seções − Agregações' },
     { label: 'Mesários (MRV)', value: formatNumber(kpis.totalMesarios), sub: 'MRV × 4' },
     { label: 'ADM Prédio', value: formatNumber(kpis.totalAdministradores), sub: 'conforme MRV' },
     { label: 'Coord. Acess.', value: formatNumber(kpis.totalCoordAcess), sub: 'conforme MRV' },
     { label: 'Aux. Serv. Eleitorais', value: formatNumber(kpis.totalAuxServ), sub: 'locais × 3' },
-    { label: 'Total Agregações', value: formatNumber(kpis.totalAgregacoes), sub: 'informado por admin' },
     { label: 'Mesa MRJ', value: formatNumber(kpis.totalMesaMrj), sub: 'informado por admin' },
     { label: 'Mesários MRJ', value: formatNumber(kpis.totalMesariosMrj), sub: 'Mesa MRJ × 2' },
     { label: 'Ponto de Apoio', value: formatNumber(kpis.totalPontoApoio), sub: 'informado por admin' },
@@ -637,31 +640,16 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
           ))}
         </section>
 
-        {/* ── Valores calculados (9 secundários) ────────────────── */}
+        {/* ── Valores calculados (10 secundários, 1 por coluna da tabela) ── */}
         <SectionHead title="Valores calculados" hint="derivados de regras de dimensionamento" />
         <section className="ds-card overflow-hidden mb-7">
-          {/* Linha 1 — 4 valores derivados de seções/locais */}
-          <div className="grid grid-cols-2 md:grid-cols-4">
-            {calcKpis.slice(0, 4).map((k, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-5">
+            {calcKpis.map((k, i) => (
               <div
                 key={k.label}
                 className={`p-4 border-border-faint
-                  ${i % 4 !== 3 ? 'border-r' : ''}
-                  max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}
-              >
-                <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3] min-h-[26px]">{k.label}</div>
-                <div className="num mt-1.5 text-[21px] font-bold tracking-[-0.02em] leading-none text-ink">{k.value}</div>
-                <div className="mt-1 text-[10px] text-ink-4">{k.sub}</div>
-              </div>
-            ))}
-          </div>
-          {/* Linha 2 — 5 valores informados por admin (e derivados) */}
-          <div className="grid grid-cols-2 md:grid-cols-5 border-t border-border-faint">
-            {calcKpis.slice(4).map((k, i) => (
-              <div
-                key={k.label}
-                className={`p-4 border-border-faint
-                  ${i % 5 !== 4 ? 'border-r' : ''}
+                  ${i % 5 !== 4 ? 'md:border-r' : ''}
+                  ${i >= 5 ? 'md:border-t' : ''}
                   max-md:[&:nth-child(odd)]:border-r max-md:[&:nth-child(n+3)]:border-t`}
               >
                 <div className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-3 leading-[1.3] min-h-[26px]">{k.label}</div>

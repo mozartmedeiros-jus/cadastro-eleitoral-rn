@@ -95,6 +95,19 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-23 (KPIs "Valores calculados" = 1 por coluna da tabela, na ordem da tabela)**: a pedido
+  do usuário, a seção **"Valores calculados"** da visão *Pessoal de apoio* (`/`, `CadastroClient.tsx`)
+  passou a ter **10 KPIs**, um para cada coluna de dimensionamento da tabela e **na mesma ordem**:
+  `Total Agregações · MRV · Mesários (MRV) · ADM Prédio · Coord. Acess. · Aux. Serv. Eleitorais ·
+  Mesa MRJ · Mesários MRJ · Ponto de Apoio · ADM Prédio Extra`.
+  - **Adicionado o KPI `MRV`** (antes inexistente como card): `totalMrv` já era somado no `useMemo`
+    `kpis`, mas não era retornado — passou a integrar o objeto. Sub do card: "Seções − Agregações".
+  - **Reordenado** `calcKpis` para espelhar as colunas (`Total Seções` segue como indicador-base,
+    fora dos 10). **Layout** trocou de 4+5 (dois grids) para **grade única `grid-cols-2 md:grid-cols-5`**
+    (5×2), com bordas-divisoras de 1px ajustadas (`md:border-r`/`md:border-t` + regras `max-md`).
+  - Só apresentação; nenhuma mudança de dado/coleção/cálculo. Tabela, filtros e indicadores-base
+    intactos. Só tokens DSGov, sem hex. `npm run build` OK; `firebase deploy --only hosting`
+    (120 arquivos) em produção (`https://eleicoes2026-dadoszonas.web.app`).
 - **2026-06-23 (ordem dos KPIs/colunas + filtro "Demais status" na visão Pontos de Apoio)**: a
   pedido do usuário, três ajustes de apresentação/filtragem na visão **Pontos de Apoio** da página
   `/` (CSV ao vivo), sem tocar em dados/CSV-fonte/lib/rules.
