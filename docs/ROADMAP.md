@@ -87,6 +87,21 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-23 (ordem dos KPIs/colunas + filtro "Demais status" na visão Pontos de Apoio)**: a
+  pedido do usuário, três ajustes de apresentação/filtragem na visão **Pontos de Apoio** da página
+  `/` (CSV ao vivo), sem tocar em dados/CSV-fonte/lib/rules.
+  - **`PontosApoioPanel.tsx`:** (1) cards de KPI reordenados para **Zonas · Locais · Apoio ·
+    Transmissão** (só ordem do JSX; o objeto `kpis` e o cálculo do Apoio — `p.apoio === 'APOIO'` —
+    ficaram intactos, o card Apoio mantém o realce em `accent` e o sub "com status APOIO");
+    (2) filtro "Todas as características" ganhou a opção **"Demais status"** = linhas com status
+    `INCLUIR`/`ALTERAR`/`EXCLUIR` (predicado `matchFlag` estendido, tipo do estado e cast do
+    `onChange` passam a incluir `'demais'`); (3) colunas da tabela reordenadas para **Apoio antes
+    de Transmissão**; (4) textos inferiores dos cards ajustados — **Locais** "pontos de apoio" →
+    **"locais de votação"** e **Apoio** "com status APOIO" → **"pontos de apoio"**.
+  - **`CadastroClient.tsx`:** `exportPontosCSV` reordenado (cabeçalho e linha) para casar com a
+    tabela — Apoio antes de Transmissão.
+  - `npm run build` OK (TypeScript sem erros); `firebase deploy --only hosting` (120 arquivos) em
+    produção (`https://eleicoes2026-dadoszonas.web.app`).
 - **2026-06-22 (identificador sequencial na coluna Local da visão MRJ)**: a pedido do usuário, a
   coluna **Local** da visão MRJ passou a exibir um código no formato **`"200 - NOME DO LOCAL"`**,
   reiniciando em **200** a cada par **Zona + Município**.

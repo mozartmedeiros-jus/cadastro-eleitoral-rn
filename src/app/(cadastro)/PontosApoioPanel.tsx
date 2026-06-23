@@ -55,7 +55,7 @@ export default function PontosApoioPanel({
   const [search, setSearch] = useState('');
   const [selectedZona, setSelectedZona] = useState('');
   const [selectedMuni, setSelectedMuni] = useState('');
-  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'apoio'>('');
+  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'apoio' | 'demais'>('');
 
   // Paginação (mesmo padrão de CadastroClient)
   const [currentPage, setCurrentPage] = useState(1);
@@ -110,8 +110,12 @@ export default function PontosApoioPanel({
         p.endereco.toLowerCase().includes(q);
       const matchZona = selectedZona === '' || p.zona === selectedZona;
       const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
-      const matchFlag = selectedFlag === '' ||
-        (selectedFlag === 'transmissao' ? p.transmissao : p.apoio === 'APOIO');
+      const apoioUp = p.apoio.trim().toUpperCase();
+      const matchFlag =
+        selectedFlag === '' ? true
+        : selectedFlag === 'transmissao' ? p.transmissao
+        : selectedFlag === 'apoio' ? apoioUp === 'APOIO'
+        : apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
       return matchSearch && matchZona && matchMuni && matchFlag;
     });
   }, [pontos, search, selectedZona, selectedMuni, selectedFlag]);
@@ -183,6 +187,12 @@ export default function PontosApoioPanel({
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Locais</div>
           <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalLocais}</div>
+          <div className="mt-[7px] text-[11px] text-ink-4">locais de votação</div>
+        </div>
+        <div className="relative ds-card p-[18px] overflow-hidden">
+          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Apoio</div>
+          <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-accent">{kpis.totalApoio}</div>
           <div className="mt-[7px] text-[11px] text-ink-4">pontos de apoio</div>
         </div>
         <div className="relative ds-card p-[18px] overflow-hidden">
@@ -190,12 +200,6 @@ export default function PontosApoioPanel({
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Transmissão</div>
           <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalTransmissao}</div>
           <div className="mt-[7px] text-[11px] text-ink-4">pontos de transmissão</div>
-        </div>
-        <div className="relative ds-card p-[18px] overflow-hidden">
-          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Apoio</div>
-          <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-accent">{kpis.totalApoio}</div>
-          <div className="mt-[7px] text-[11px] text-ink-4">com status APOIO</div>
         </div>
       </section>
 
@@ -250,12 +254,13 @@ export default function PontosApoioPanel({
             <select
               aria-label="Filtrar por característica"
               value={selectedFlag}
-              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'apoio')}
+              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'apoio' | 'demais')}
               className="ds-select w-full pl-3 pr-9"
             >
               <option value="">Todas as características</option>
               <option value="transmissao">Com transmissão</option>
               <option value="apoio">É ponto de apoio</option>
+              <option value="demais">Demais status</option>
             </select>
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
           </div>
@@ -282,8 +287,8 @@ export default function PontosApoioPanel({
                 <th>Local</th>
                 <th>Endereço</th>
                 <th>Funcionamento</th>
-                <th className="text-center">Transmissão</th>
                 <th className="text-center">Apoio</th>
+                <th className="text-center">Transmissão</th>
               </tr>
             </thead>
             <tbody className="text-sm text-ink-2">
@@ -299,6 +304,9 @@ export default function PontosApoioPanel({
                   </td>
                   <td className="px-4 py-[11px] text-ink-2 whitespace-nowrap">{p.funcionamento || '—'}</td>
                   <td className="px-4 py-[11px] text-center">
+                    <ApoioBadge value={p.apoio} />
+                  </td>
+                  <td className="px-4 py-[11px] text-center">
                     {p.transmissao ? (
                       <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold rounded-[4px] px-2 py-0.5 text-accent bg-accent-soft border border-accent-soft-border">
                         <Radio size={11} /> Sim
@@ -306,9 +314,6 @@ export default function PontosApoioPanel({
                     ) : (
                       <span className="text-ink-4">—</span>
                     )}
-                  </td>
-                  <td className="px-4 py-[11px] text-center">
-                    <ApoioBadge value={p.apoio} />
                   </td>
                 </tr>
               ))}
