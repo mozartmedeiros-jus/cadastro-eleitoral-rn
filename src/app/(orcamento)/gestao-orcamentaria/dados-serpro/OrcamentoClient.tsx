@@ -353,22 +353,23 @@ export default function OrcamentoClient() {
   }, [filteredData, themeColors]);
 
   const chartOptions: ChartOptions<'bar'> = useMemo(() => ({
+    indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: themeColors.ink2 } },
       tooltip: {
         callbacks: {
-          label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y ?? 0)}`,
+          label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.x ?? 0)}`,
         },
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: themeColors.ink3 } },
-      y: {
+      x: {
         grid: { color: themeColors.border },
         ticks: { color: themeColors.ink3, callback: (val) => formatNumber(Number(val)) },
       },
+      y: { grid: { display: false }, ticks: { color: themeColors.ink3 } },
     },
   }), [themeColors]);
 
@@ -517,21 +518,23 @@ export default function OrcamentoClient() {
               Execução Orçamentária — Pleitos 2026
             </h1>
           </div>
+        </div>
+      </header>
 
-          <div className="flex items-center gap-2.5">
+      <GestaoNav
+        rightSlot={
+          <>
             <input ref={fileInputRef} type="file" accept=".xlsx" hidden onChange={onFileChange} />
             <button
               onClick={() => fileInputRef.current?.click()}
               aria-label="Atualizar dados a partir de uma nova planilha"
-              className="inline-flex items-center gap-2 h-[38px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
+              className="inline-flex items-center gap-2 h-[34px] px-4 rounded-[6px] bg-accent border border-accent text-accent-on text-[13px] font-semibold hover:bg-accent-strong hover:border-accent-strong transition-colors"
             >
               <Upload size={14} /> <span className="hidden sm:inline">Atualizar dados</span>
             </button>
-          </div>
-        </div>
-      </header>
-
-      <GestaoNav />
+          </>
+        }
+      />
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* Indicadores */}
@@ -547,11 +550,12 @@ export default function OrcamentoClient() {
           ))}
         </section>
 
-        {/* Evolução mensal */}
+        {/* Evolução mensal — barras horizontais do mês selecionado; vazio com "todos os meses".
+            Largura total da linha (mesmas margens dos KPIs); altura ~2× a referência dos KPIs. */}
         <SectionHead title="Evolução mensal" hint="empenhado, liquidado e pago (R$)" />
-        <section className="ds-card p-4 md:p-6 mb-7">
-          <div className="h-[300px]">
-            <Bar data={chartData} options={chartOptions} />
+        <section className="ds-card p-[18px] mb-7">
+          <div className="h-[144px]">
+            {mesFilter !== 'all' && <Bar data={chartData} options={chartOptions} />}
           </div>
         </section>
 
