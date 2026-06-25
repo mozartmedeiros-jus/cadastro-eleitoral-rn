@@ -95,6 +95,20 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-25 (filtro "Apoio e transmissão" na visão Pontos de Apoio)**: a pedido do usuário, o
+  dropdown *Todas as características* da visão **Pontos de Apoio** da página `/`
+  (`PontosApoioPanel.tsx`) ganhou uma nova opção **"Apoio e transmissão"**, que filtra os locais
+  que são **ponto de apoio (`APOIO`) E têm transmissão** ao mesmo tempo.
+  - Segue o **padrão facetado** já existente: novo flag `apoioTransmissao` em `facetOptions.flags`
+    (true só quando há ≥1 registro com as duas condições), `<option>` condicional, e participação na
+    auto-limpeza/cruzamento com Zona/Município. Ordem no menu: *Com transmissão · É ponto de apoio ·
+    **Apoio e transmissão** · Demais status*. Tipo do `selectedFlag` estendido nos dois pontos
+    (estado + cast do `onChange`); ramo `isApoio && p.transmissao` adicionado aos dois `matchFlag`
+    (facet + `filtered`).
+  - Só lógica de filtro/apresentação — nenhum dado/coleção/CSV-fonte/rules; sem KPI novo; tokens DSGov,
+    sem hex. `npm run build` OK; `firebase deploy --only hosting` (120 arquivos) em produção
+    (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** branch `feat/filtro-apoio-transmissao` (**PR #31**).
 - **2026-06-25 (filtros facetados "tudo em cascata" nas 3 visões da Estatística)**: a pedido do
   usuário, os filtros das três visões da página `/` passaram a ser **facetados** — as opções de cada
   dropdown refletem só valores que existem dado o estado de **todos os outros** filtros (ex.: escolher
