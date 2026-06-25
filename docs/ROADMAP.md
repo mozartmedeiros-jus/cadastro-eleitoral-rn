@@ -95,6 +95,25 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-25 (filtros facetados "tudo em cascata" nas 3 visões da Estatística)**: a pedido do
+  usuário, os filtros das três visões da página `/` passaram a ser **facetados** — as opções de cada
+  dropdown refletem só valores que existem dado o estado de **todos os outros** filtros (ex.: escolher
+  uma Zona restringe Município; escolher um filtro categórico restringe Zona/Município).
+  - **`CadastroClient.tsx` (Pessoal de apoio):** o `filterOptions` (que já cruzava Zona↔Município)
+    passou a incluir **Situação** — corrigindo a falha de "Com seção aguardando processamento" **não**
+    restringir Zona/Município. Novo retorno `{ zonas, municipios, situacoes:{aguardando,ativo} }`;
+    auto-limpeza e `<option>` de Situação condicionais por disponibilidade.
+  - **`PontosApoioPanel.tsx`:** os 2 `useMemo` independentes (`zonas`/`municipios`) viraram um
+    `facetOptions` único cruzando Zona/Município/**Característica**
+    (`flags:{transmissao,apoio,demais}`) + `useEffect` de auto-limpeza; `<option>` de Característica
+    condicionais.
+  - **`MrjPanel.tsx`:** idem com **Turno** (`turnos:{t1,t2,t2sv}`).
+  - **Decisões:** busca textual fica **fora** do cálculo das opções (evita "piscar" ao digitar);
+    opções sem dado são **ocultadas** (consistente com Zona/Município) + auto-limpeza reseta seleção
+    que ficar inválida. Só lógica de filtro/derivação — nenhuma mudança de dado/coleção/CSV-fonte/
+    rules; só tokens DSGov, sem hex. `npm run build` OK; `firebase deploy --only hosting` (120
+    arquivos) em produção (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** branch `feat/filtros-facetados-estatistica` (**PR #30**).
 - **2026-06-23 (KPIs "Valores calculados" = 1 por coluna da tabela, na ordem da tabela)**: a pedido
   do usuário, a seção **"Valores calculados"** da visão *Pessoal de apoio* (`/`, `CadastroClient.tsx`)
   passou a ter **10 KPIs**, um para cada coluna de dimensionamento da tabela e **na mesma ordem**:

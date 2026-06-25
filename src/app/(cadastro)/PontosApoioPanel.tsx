@@ -86,21 +86,50 @@ export default function PontosApoioPanel({
     onControlsChange?.({ lastUpdated, refreshing, refresh: () => load() });
   }, [lastUpdated, refreshing, load, onControlsChange]);
 
-  const zonas = useMemo(
-    () => Array.from(new Set(pontos.map((p) => p.zona).filter(Boolean)))
-      .sort((a, b) => {
+  // Filtragem facetada: as opções de cada filtro respeitam a seleção de todos os outros
+  const facetOptions = useMemo(() => {
+    const zonas = new Set<string>();
+    const munis = new Set<string>();
+    const flags = { transmissao: false, apoio: false, demais: false };
+
+    pontos.forEach((p) => {
+      const apoioUp = p.apoio.trim().toUpperCase();
+      const isDemais = apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
+      const matchZona = selectedZona === '' || p.zona === selectedZona;
+      const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
+      const matchFlag =
+        selectedFlag === '' ? true
+        : selectedFlag === 'transmissao' ? p.transmissao
+        : selectedFlag === 'apoio' ? apoioUp === 'APOIO'
+        : isDemais;
+
+      if (p.zona && matchMuni && matchFlag) zonas.add(p.zona);
+      if (p.municipio && matchZona && matchFlag) munis.add(p.municipio);
+      if (matchZona && matchMuni) {
+        if (p.transmissao) flags.transmissao = true;
+        if (apoioUp === 'APOIO') flags.apoio = true;
+        if (isDemais) flags.demais = true;
+      }
+    });
+
+    return {
+      zonas: Array.from(zonas).sort((a, b) => {
         const na = parseInt(a, 10);
         const nb = parseInt(b, 10);
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
         return a.localeCompare(b);
       }),
-    [pontos],
-  );
+      municipios: Array.from(munis).sort((a, b) => a.localeCompare(b)),
+      flags,
+    };
+  }, [pontos, selectedZona, selectedMuni, selectedFlag]);
 
-  const municipios = useMemo(
-    () => Array.from(new Set(pontos.map((p) => p.municipio).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [pontos],
-  );
+  // Auto-clear: se a seleção atual deixou de ser válida após o cruzamento, limpa
+  useEffect(() => {
+    if (selectedZona && !facetOptions.zonas.includes(selectedZona)) setSelectedZona('');
+    if (selectedMuni && !facetOptions.municipios.includes(selectedMuni)) setSelectedMuni('');
+    if (selectedFlag && !facetOptions.flags[selectedFlag]) setSelectedFlag('');
+  }, [facetOptions, selectedZona, selectedMuni, selectedFlag]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -227,7 +256,7 @@ export default function PontosApoioPanel({
               className="ds-select w-full pl-9 pr-9"
             >
               <option value="">Todas as zonas</option>
-              {zonas.map((z) => (
+              {facetOptions.zonas.map((z) => (
                 <option key={z} value={z}>Zona {z}</option>
               ))}
             </select>
@@ -243,7 +272,7 @@ export default function PontosApoioPanel({
               className="ds-select w-full pl-9 pr-9"
             >
               <option value="">Todos os municípios</option>
-              {municipios.map((m) => (
+              {facetOptions.municipios.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
@@ -258,9 +287,9 @@ export default function PontosApoioPanel({
               className="ds-select w-full pl-3 pr-9"
             >
               <option value="">Todas as características</option>
-              <option value="transmissao">Com transmissão</option>
-              <option value="apoio">É ponto de apoio</option>
-              <option value="demais">Demais status</option>
+              {facetOptions.flags.transmissao && <option value="transmissao">Com transmissão</option>}
+              {facetOptions.flags.apoio && <option value="apoio">É ponto de apoio</option>}
+              {facetOptions.flags.demais && <option value="demais">Demais status</option>}
             </select>
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
           </div>
