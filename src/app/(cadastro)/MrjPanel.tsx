@@ -76,21 +76,50 @@ export default function MrjPanel({
     onControlsChange?.({ lastUpdated, refreshing, refresh: () => load() });
   }, [lastUpdated, refreshing, load, onControlsChange]);
 
-  const zonas = useMemo(
-    () => Array.from(new Set(mrj.map((m) => m.zona).filter(Boolean)))
-      .sort((a, b) => {
+  // Filtragem facetada: as opções de cada filtro respeitam a seleção de todos os outros
+  const facetOptions = useMemo(() => {
+    const zonas = new Set<string>();
+    const munis = new Set<string>();
+    const turnos = { t1: false, t2: false, t2sv: false };
+
+    mrj.forEach((m) => {
+      const matchZona = selectedZona === '' || m.zona === selectedZona;
+      const matchMuni = selectedMuni === '' || m.municipio === selectedMuni;
+      const matchTurno = selectedTurno === '' ||
+        (selectedTurno === '1' ? m.primeiroTurno
+          : selectedTurno === '2' ? m.segundoTurno
+            : m.segundoTurnoSemVotacao);
+
+      if (m.zona && matchMuni && matchTurno) zonas.add(m.zona);
+      if (m.municipio && matchZona && matchTurno) munis.add(m.municipio);
+      if (matchZona && matchMuni) {
+        if (m.primeiroTurno) turnos.t1 = true;
+        if (m.segundoTurno) turnos.t2 = true;
+        if (m.segundoTurnoSemVotacao) turnos.t2sv = true;
+      }
+    });
+
+    return {
+      zonas: Array.from(zonas).sort((a, b) => {
         const na = parseInt(a, 10);
         const nb = parseInt(b, 10);
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
         return a.localeCompare(b);
       }),
-    [mrj],
-  );
+      municipios: Array.from(munis).sort((a, b) => a.localeCompare(b)),
+      turnos,
+    };
+  }, [mrj, selectedZona, selectedMuni, selectedTurno]);
 
-  const municipios = useMemo(
-    () => Array.from(new Set(mrj.map((m) => m.municipio).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [mrj],
-  );
+  // Auto-clear: se a seleção atual deixou de ser válida após o cruzamento, limpa
+  useEffect(() => {
+    if (selectedZona && !facetOptions.zonas.includes(selectedZona)) setSelectedZona('');
+    if (selectedMuni && !facetOptions.municipios.includes(selectedMuni)) setSelectedMuni('');
+    if (selectedTurno) {
+      const key = selectedTurno === '1' ? 't1' : selectedTurno === '2' ? 't2' : 't2sv';
+      if (!facetOptions.turnos[key]) setSelectedTurno('');
+    }
+  }, [facetOptions, selectedZona, selectedMuni, selectedTurno]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -223,7 +252,7 @@ export default function MrjPanel({
               className="ds-select w-full pl-9 pr-9"
             >
               <option value="">Todas as zonas</option>
-              {zonas.map((z) => (
+              {facetOptions.zonas.map((z) => (
                 <option key={z} value={z}>Zona {z}</option>
               ))}
             </select>
@@ -239,7 +268,7 @@ export default function MrjPanel({
               className="ds-select w-full pl-9 pr-9"
             >
               <option value="">Todos os municípios</option>
-              {municipios.map((m) => (
+              {facetOptions.municipios.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
@@ -254,9 +283,9 @@ export default function MrjPanel({
               className="ds-select w-full pl-3 pr-9"
             >
               <option value="">Todos os turnos</option>
-              <option value="1">1º turno</option>
-              <option value="2">2º turno</option>
-              <option value="2sv">2º turno (sem votação)</option>
+              {facetOptions.turnos.t1 && <option value="1">1º turno</option>}
+              {facetOptions.turnos.t2 && <option value="2">2º turno</option>}
+              {facetOptions.turnos.t2sv && <option value="2sv">2º turno (sem votação)</option>}
             </select>
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
           </div>

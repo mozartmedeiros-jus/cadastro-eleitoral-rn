@@ -195,18 +195,24 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
   const getMrv = (totalSecoes: number, firestoreId: string): number =>
     Math.max(0, totalSecoes - getTotalAgregacoes(firestoreId));
 
-  // Cascading filter options: cada select respeita a seleção do outro
+  // Filtragem facetada: as opções de cada filtro respeitam a seleção de todos os outros
   const filterOptions = useMemo(() => {
     const zonas = new Set<string>();
     const munis = new Set<string>();
+    const situacoes = { aguardando: false, ativo: false };
 
     initialData.forEach(d => {
       const zonaStr = d.zona ? String(d.zona) : '';
-      if (zonaStr && (selectedMuni === '' || d.municipio === selectedMuni)) {
-        zonas.add(zonaStr);
-      }
-      if (d.municipio && (selectedZona === '' || zonaStr === selectedZona)) {
-        munis.add(d.municipio);
+      const matchZona = selectedZona === '' || zonaStr === selectedZona;
+      const matchMuni = selectedMuni === '' || d.municipio === selectedMuni;
+      const matchSit = selectedSituacao === '' ||
+        (selectedSituacao === 'aguardando' ? !!d.tem_secao_aguardando : !d.tem_secao_aguardando);
+
+      if (zonaStr && matchMuni && matchSit) zonas.add(zonaStr);
+      if (d.municipio && matchZona && matchSit) munis.add(d.municipio);
+      if (matchZona && matchMuni) {
+        if (d.tem_secao_aguardando) situacoes.aguardando = true;
+        else situacoes.ativo = true;
       }
     });
 
@@ -217,9 +223,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
         if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
         return a.localeCompare(b);
       }),
-      municipios: Array.from(munis).sort((a, b) => a.localeCompare(b))
+      municipios: Array.from(munis).sort((a, b) => a.localeCompare(b)),
+      situacoes
     };
-  }, [initialData, selectedZona, selectedMuni]);
+  }, [initialData, selectedZona, selectedMuni, selectedSituacao]);
 
   // Auto-clear: se a seleção atual deixou de ser válida após o cruzamento, limpa
   useEffect(() => {
@@ -229,7 +236,10 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
     if (selectedMuni && !filterOptions.municipios.includes(selectedMuni)) {
       setSelectedMuni('');
     }
-  }, [filterOptions, selectedZona, selectedMuni]);
+    if (selectedSituacao && !filterOptions.situacoes[selectedSituacao as 'aguardando' | 'ativo']) {
+      setSelectedSituacao('');
+    }
+  }, [filterOptions, selectedZona, selectedMuni, selectedSituacao]);
 
   // Filter & Search Logic
   const filteredData = useMemo(() => {
@@ -714,8 +724,12 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                 className="ds-select w-full pl-3 pr-9"
               >
                 <option value="">Todas as situações</option>
-                <option value="aguardando">Com seção aguardando processamento</option>
-                <option value="ativo">Todas as seções ativas</option>
+                {filterOptions.situacoes.aguardando && (
+                  <option value="aguardando">Com seção aguardando processamento</option>
+                )}
+                {filterOptions.situacoes.ativo && (
+                  <option value="ativo">Todas as seções ativas</option>
+                )}
               </select>
               <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
             </div>
