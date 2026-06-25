@@ -55,7 +55,7 @@ export default function PontosApoioPanel({
   const [search, setSearch] = useState('');
   const [selectedZona, setSelectedZona] = useState('');
   const [selectedMuni, setSelectedMuni] = useState('');
-  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'apoio' | 'demais'>('');
+  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'apoio' | 'apoioTransmissao' | 'demais'>('');
 
   // Paginação (mesmo padrão de CadastroClient)
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,24 +90,27 @@ export default function PontosApoioPanel({
   const facetOptions = useMemo(() => {
     const zonas = new Set<string>();
     const munis = new Set<string>();
-    const flags = { transmissao: false, apoio: false, demais: false };
+    const flags = { transmissao: false, apoio: false, apoioTransmissao: false, demais: false };
 
     pontos.forEach((p) => {
       const apoioUp = p.apoio.trim().toUpperCase();
+      const isApoio = apoioUp === 'APOIO';
       const isDemais = apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
       const matchZona = selectedZona === '' || p.zona === selectedZona;
       const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
       const matchFlag =
         selectedFlag === '' ? true
         : selectedFlag === 'transmissao' ? p.transmissao
-        : selectedFlag === 'apoio' ? apoioUp === 'APOIO'
+        : selectedFlag === 'apoio' ? isApoio
+        : selectedFlag === 'apoioTransmissao' ? isApoio && p.transmissao
         : isDemais;
 
       if (p.zona && matchMuni && matchFlag) zonas.add(p.zona);
       if (p.municipio && matchZona && matchFlag) munis.add(p.municipio);
       if (matchZona && matchMuni) {
         if (p.transmissao) flags.transmissao = true;
-        if (apoioUp === 'APOIO') flags.apoio = true;
+        if (isApoio) flags.apoio = true;
+        if (isApoio && p.transmissao) flags.apoioTransmissao = true;
         if (isDemais) flags.demais = true;
       }
     });
@@ -144,6 +147,7 @@ export default function PontosApoioPanel({
         selectedFlag === '' ? true
         : selectedFlag === 'transmissao' ? p.transmissao
         : selectedFlag === 'apoio' ? apoioUp === 'APOIO'
+        : selectedFlag === 'apoioTransmissao' ? apoioUp === 'APOIO' && p.transmissao
         : apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
       return matchSearch && matchZona && matchMuni && matchFlag;
     });
@@ -283,12 +287,13 @@ export default function PontosApoioPanel({
             <select
               aria-label="Filtrar por característica"
               value={selectedFlag}
-              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'apoio' | 'demais')}
+              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'apoio' | 'apoioTransmissao' | 'demais')}
               className="ds-select w-full pl-3 pr-9"
             >
               <option value="">Todas as características</option>
               {facetOptions.flags.transmissao && <option value="transmissao">Com transmissão</option>}
               {facetOptions.flags.apoio && <option value="apoio">É ponto de apoio</option>}
+              {facetOptions.flags.apoioTransmissao && <option value="apoioTransmissao">Apoio e transmissão</option>}
               {facetOptions.flags.demais && <option value="demais">Demais status</option>}
             </select>
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
