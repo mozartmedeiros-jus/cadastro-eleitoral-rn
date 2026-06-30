@@ -132,6 +132,7 @@ async function runIngestion() {
   const runAt = Timestamp.fromDate(new Date());
 
   let count = 0;
+  let changed = false; // houve alguma mudança de valor nesta carga?
   let batch = db.batch();
 
   for (const item of allData) {
@@ -162,6 +163,9 @@ async function runIngestion() {
         item.data.prevPagasAt = runAt;
       }
     }
+    if (item.data.prevEmpenhadas !== undefined || item.data.prevLiquidadas !== undefined || item.data.prevPagas !== undefined) {
+      changed = true;
+    }
 
     const docRef = collectionRef.doc(item.docId);
     batch.set(docRef, item.data, { merge: true });
@@ -176,6 +180,15 @@ async function runIngestion() {
 
   if (count % 500 !== 0) {
     await batch.commit();
+  }
+
+  // Registra a data desta carga no histórico (doc meta meta_cargas) para a UI mostrar
+  // "obtida em" por versão. Só registra se algo mudou; mantém as 4 últimas (mais recente 1ª).
+  if (changed) {
+    const metaRef = collectionRef.doc('meta_cargas');
+    const datasPrev = existing.get('meta_cargas')?.datas ?? [];
+    await metaRef.set({ datas: [runAt, ...datasPrev].slice(0, 4) }, { merge: true });
+    console.log('🗓️  Data da carga registrada no histórico.');
   }
 
   console.log(`✨ Sucesso! Total de ${count} documentos processados.`);

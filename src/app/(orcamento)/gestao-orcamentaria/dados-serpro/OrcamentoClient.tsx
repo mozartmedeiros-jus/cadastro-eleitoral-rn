@@ -26,6 +26,7 @@ import {
   getDocs,
   writeBatch,
   doc,
+  setDoc,
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
@@ -206,6 +207,8 @@ export default function OrcamentoClient() {
   const [changedFilter, setChangedFilter] = useState(false);
   // Ciclo exibido na tabela: 0 = atual (padrão), 1 = semana anterior, 2 = 2 semanas atrás.
   const [cycle, setCycle] = useState(0);
+  // Datas das últimas cargas (doc meta opl_empenhos/meta_cargas), mais recente primeiro.
+  const [cargaDatas, setCargaDatas] = useState<Timestamp[]>([]);
   const [showSuplementar, setShowSuplementar] = useState(false); // default: ocultar
   const [showSemEntrada, setShowSemEntrada] = useState(false); // default: ocultar
   const defaultSelectedRef = useRef(false);
@@ -245,6 +248,15 @@ export default function OrcamentoClient() {
       setLoading(false);
     });
 
+    return () => unsub();
+  }, [canEdit]);
+
+  // Histórico de datas das cargas (doc meta meta_cargas; sem mesCode, fica fora da query acima).
+  useEffect(() => {
+    if (!canEdit) return;
+    const unsub = onSnapshot(doc(db, 'opl_empenhos', 'meta_cargas'), (snap) => {
+      setCargaDatas((snap.data()?.datas as Timestamp[] | undefined) ?? []);
+    });
     return () => unsub();
   }, [canEdit]);
 
@@ -476,6 +488,7 @@ export default function OrcamentoClient() {
       const snap = await getDocs(col);
       const existing = new Map(snap.docs.map(d => [d.id, d.data()]));
       const runAt = Timestamp.fromDate(new Date());
+      let anyChanged = false; // houve alguma mudança de valor nesta carga?
 
       await commitInBatches(
         novos.map(n => (b: ReturnType<typeof writeBatch>) => {
@@ -507,10 +520,18 @@ export default function OrcamentoClient() {
               extra.prevPagasAt = runAt;
             }
           }
+          if (Object.keys(extra).length > 0) anyChanged = true;
           b.set(doc(col, n.docId), { ...n.data, ...extra, updatedAt: serverTimestamp() }, { merge: true });
         }),
         (done, total) => setImportStatus(`Gravando ${done}/${total}…`),
       );
+
+      // Registra a data desta carga no histórico (doc meta meta_cargas) para a UI mostrar
+      // "obtida em" por versão. Só registra se algo mudou; mantém as 4 últimas (mais recente 1ª).
+      if (anyChanged) {
+        const datasPrev = (existing.get('meta_cargas')?.datas as Timestamp[] | undefined) ?? [];
+        await setDoc(doc(col, 'meta_cargas'), { datas: [runAt, ...datasPrev].slice(0, 4) }, { merge: true });
+      }
 
       setImportStatus(`${novos.length} empenhos atualizados (variação semanal preservada).`);
       setImportDone(true);
@@ -710,6 +731,11 @@ export default function OrcamentoClient() {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            {/* Data em que a versão selecionada foi obtida (doc meta meta_cargas). */}
+            <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] text-ink-3 whitespace-nowrap" title="Data em que esta versão dos dados foi obtida">
+              <Calendar size={13} className="text-ink-4" />
+              {cargaDatas[cycle] ? `obtida em ${formatDate(cargaDatas[cycle])}` : 'data indisponível'}
+            </span>
             {/* Navegador por versão (carga): começa em "Atual"; ◀ recua até "Atual −2", ▶ avança.
                 "Versão" porque o histórico rola por upload que muda valores, não por semana. */}
             <div className="inline-flex items-stretch h-[34px] rounded-[6px] border border-border-strong bg-surface overflow-hidden text-ink-2">
