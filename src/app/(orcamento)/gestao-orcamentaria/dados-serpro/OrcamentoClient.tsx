@@ -138,19 +138,12 @@ function varDir(curr: number, prev?: number): VarDir {
 // é reconstruída caindo para o valor mais recente quando aquele ciclo não registrou mudança.
 const CYCLE_LABELS = ['Atual', 'Semana anterior', '2 semanas atrás'] as const;
 
-// Foto de um campo (cur/prev1/prev2 + seus carimbos) no ciclo escolhido: devolve o valor a
-// exibir, o valor do ciclo imediatamente mais antigo (para a seta) e a data em que mudou.
-function cellSnap(
-  cur: number,
-  p1: number | undefined,
-  p1At: Timestamp | undefined,
-  p2: number | undefined,
-  p2At: Timestamp | undefined,
-  cycle: number,
-): { value: number; prev?: number; at?: Timestamp } {
-  if (cycle === 0) return { value: cur, prev: p1, at: p1At };
-  if (cycle === 1) return { value: p1 ?? cur, prev: p2, at: p2At };
-  return { value: p2 ?? p1 ?? cur };
+// Valor a exibir de um campo no ciclo escolhido. Só o valor muda por ciclo — as setas de
+// variação permanecem ancoradas na última transição (atual × prev), estáveis entre as semanas.
+function cellValue(cur: number, p1: number | undefined, p2: number | undefined, cycle: number): number {
+  if (cycle === 0) return cur;
+  if (cycle === 1) return p1 ?? cur;
+  return p2 ?? p1 ?? cur;
 }
 // Empenhos de Eleição Suplementar (descrição inicia com "ELEICAO SUPLEMENTAR",
 // comparando sem acento e sem caixa).
@@ -304,7 +297,7 @@ export default function OrcamentoClient() {
 
   // "Apenas com alteração": conjunto estável, sempre baseado na última transição (atual × prev),
   // independente do ciclo exibido. Assim a navegação entre semanas mantém as mesmas linhas e só
-  // troca os valores mostrados (via cellSnap no render) — em vez de esvaziar em ciclos sem prev2.
+  // troca os valores mostrados (via cellValue no render) — em vez de esvaziar em ciclos sem prev2.
   const hasAnyChange = useMemo(
     () => (d: Empenho) =>
       !!varDir(d.despesasEmpenhadas, d.prevEmpenhadas) ||
@@ -760,13 +753,14 @@ export default function OrcamentoClient() {
             </thead>
             <tbody className="divide-y divide-border-faint text-sm">
               {tableRows.map((d) => {
-                // Foto de cada coluna no ciclo selecionado (atual / anterior / 2 atrás).
-                const emp = cellSnap(d.despesasEmpenhadas, d.prevEmpenhadas, d.prevEmpenhadasAt, d.prev2Empenhadas, d.prev2EmpenhadasAt, cycle);
-                const liq = cellSnap(d.despesasLiquidadas, d.prevLiquidadas, d.prevLiquidadasAt, d.prev2Liquidadas, d.prev2LiquidadasAt, cycle);
-                const pag = cellSnap(d.despesasPagas, d.prevPagas, d.prevPagasAt, d.prev2Pagas, d.prev2PagasAt, cycle);
-                const empDir = varDir(emp.value, emp.prev);
-                const liqDir = varDir(liq.value, liq.prev);
-                const pagDir = varDir(pag.value, pag.prev);
+                // Valor de cada coluna no ciclo selecionado (atual / anterior / 2 atrás).
+                const empVal = cellValue(d.despesasEmpenhadas, d.prevEmpenhadas, d.prev2Empenhadas, cycle);
+                const liqVal = cellValue(d.despesasLiquidadas, d.prevLiquidadas, d.prev2Liquidadas, cycle);
+                const pagVal = cellValue(d.despesasPagas, d.prevPagas, d.prev2Pagas, cycle);
+                // Setas/variação: sempre a última transição (atual × semana anterior), estáveis entre ciclos.
+                const empDir = varDir(d.despesasEmpenhadas, d.prevEmpenhadas);
+                const liqDir = varDir(d.despesasLiquidadas, d.prevLiquidadas);
+                const pagDir = varDir(d.despesasPagas, d.prevPagas);
 
                 return (
                   <tr key={d.id} className="row-hover">
@@ -787,27 +781,27 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={empDir ? `Empenhado alterado em ${formatDate(emp.at)} · anterior ${formatCurrency(emp.prev!)}` : undefined}
+                        title={empDir ? `Empenhado: ${formatCurrency(d.prevEmpenhadas!)} → ${formatCurrency(d.despesasEmpenhadas)} em ${formatDate(d.prevEmpenhadasAt)}` : undefined}
                       >
-                        <span className="font-bold text-ink num">{formatCurrency(emp.value)}</span>
+                        <span className="font-bold text-ink num">{formatCurrency(empVal)}</span>
                         <VarArrow dir={empDir} />
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={liqDir ? `Liquidado alterado em ${formatDate(liq.at)} · anterior ${formatCurrency(liq.prev!)}` : undefined}
+                        title={liqDir ? `Liquidado: ${formatCurrency(d.prevLiquidadas!)} → ${formatCurrency(d.despesasLiquidadas)} em ${formatDate(d.prevLiquidadasAt)}` : undefined}
                       >
-                        <span className="num text-ink-2">{formatCurrency(liq.value)}</span>
+                        <span className="num text-ink-2">{formatCurrency(liqVal)}</span>
                         <VarArrow dir={liqDir} />
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={pagDir ? `Pago alterado em ${formatDate(pag.at)} · anterior ${formatCurrency(pag.prev!)}` : undefined}
+                        title={pagDir ? `Pago: ${formatCurrency(d.prevPagas!)} → ${formatCurrency(d.despesasPagas)} em ${formatDate(d.prevPagasAt)}` : undefined}
                       >
-                        <span className="num text-ink-2">{formatCurrency(pag.value)}</span>
+                        <span className="num text-ink-2">{formatCurrency(pagVal)}</span>
                         <VarArrow dir={pagDir} />
                       </div>
                     </td>
