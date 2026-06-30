@@ -95,6 +95,30 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-06-30 (SERPRO: histórico de 2 versões + navegação na tabela + carga 0627)**: a pedido do
+  usuário, a tela **Dados SERPRO** (`/gestao-orcamentaria/dados-serpro`, `OrcamentoClient.tsx`,
+  coleção `opl_empenhos`) ganhou navegação por **versões** da carga e a preservação de histórico
+  passou de 1 para **2 ciclos**. Trabalho iterativo ao longo da sessão (vários PRs encadeados);
+  estado final abaixo.
+  - **Preservação (2 ciclos):** nos **dois escritores** equivalentes — CLI `scripts/opl-serpro/upload.mjs`
+    e botão "Atualizar dados" (`confirmImport`) — ao mudar um valor, `prev → prev2` (com carimbo) e o
+    atual vira o novo `prev`. Mantida a **guarda por valor** (só rola quando muda; merge preserva).
+    Campos `prev2Empenhadas/Liquidadas/Pagas` (+ `*At`) na interface.
+  - **Navegador "Versão"** (stepper ◀▶): **Atual / Atual −1 / Atual −2**. Helper `cellValue(cur,p1,p2,cycle)`
+    reconstrói o valor exibido por versão (fallback ao mais recente quando aquela versão não registrou
+    mudança naquela célula). Rótulo "Versão" (não "semana") porque o histórico rola **por carga/upload
+    que muda valores**, não por calendário — cadência real é irregular (ex.: 0616→0627 = 11 dias).
+  - **Setas de variação:** "Atual" = carga-a-carga (atual × `prev`), casando com o filtro **"Apenas com
+    alteração na semana"** (conjunto estável); **versões passadas = mês-a-mês** (mesma NE no mês anterior,
+    via índice `byKey` + helper `prevMonthCode`) — evita "R$ 0,00 ↗" e é robusto à cadência de cargas.
+  - **Carga 0627 em produção** pela UI (1064 docs · 12 meses · 121 NEs · 0 anomalias; delta vs. 0616:
+    161 mudaram, 126 novos), validada antes por dry-run `--csv` do CLI.
+  - Só lógica/apresentação + 2 campos novos por doc; sem mudança de `firestore.rules`; tokens DSGov,
+    sem hex. Cada PR com `npm run build` OK e `firebase deploy --only hosting` em produção
+    (`https://eleicoes2026-dadoszonas.web.app`).
+  - **Git:** **PR #32** (preserva 2 ciclos + navegação) · **#33** (filtro estável entre ciclos) ·
+    **#34** (setas estáveis) · **#35** (variação mês-a-mês nas versões passadas) · **#36** (tentativa de
+    3º ciclo + navegador segmentado, **revertida**) · **#37** (volta a 2 versões, stepper ◀▶, rótulo "Versão").
 - **2026-06-25 (filtro "Apoio e transmissão" na visão Pontos de Apoio)**: a pedido do usuário, o
   dropdown *Todas as características* da visão **Pontos de Apoio** da página `/`
   (`PontosApoioPanel.tsx`) ganhou uma nova opção **"Apoio e transmissão"**, que filtra os locais
