@@ -14,6 +14,8 @@ import {
   X,
   Eye,
   EyeOff,
+  ChevronLeft,
+  ChevronRight,
   History
 } from 'lucide-react';
 import {
@@ -71,8 +73,7 @@ interface Empenho {
   ano: number;
   mesCode: string;
   // Histórico preservado pela ingestão (só rola quando o valor muda): prev* = 1 carga atrás,
-  // prev2* = 2 cargas atrás, prev3* = 3 cargas atrás, cada um com o carimbo de quando aquele
-  // valor foi superado.
+  // prev2* = 2 cargas atrás, cada um com o carimbo de quando aquele valor foi superado.
   prevEmpenhadas?: number;
   prevLiquidadas?: number;
   prevPagas?: number;
@@ -85,12 +86,6 @@ interface Empenho {
   prev2EmpenhadasAt?: Timestamp;
   prev2LiquidadasAt?: Timestamp;
   prev2PagasAt?: Timestamp;
-  prev3Empenhadas?: number;
-  prev3Liquidadas?: number;
-  prev3Pagas?: number;
-  prev3EmpenhadasAt?: Timestamp;
-  prev3LiquidadasAt?: Timestamp;
-  prev3PagasAt?: Timestamp;
 }
 
 function formatCurrency(val: number) {
@@ -144,19 +139,18 @@ function varDir(curr: number, prev?: number): VarDir {
   return curr > prev ? 'up' : 'down';
 }
 
-// Navegação por carga da tabela: 0 = valores atuais, 1/2/3 = uma/duas/três cargas atrás.
-// "Carga" (não "semana"): o histórico rola por upload em que o valor muda, não por calendário.
-// Os campos prev*/prev2*/prev3* só são gravados quando o valor muda, então a foto de uma carga
-// passada é reconstruída caindo para o valor mais recente quando aquela carga não registrou mudança.
-const CYCLE_LABELS = ['Atual', 'Atual −1', 'Atual −2', 'Atual −3'] as const;
+// Navegação por versão da tabela: 0 = valores atuais, 1/2 = uma/duas versões (cargas) atrás.
+// "Versão" (não "semana"): o histórico rola por upload em que o valor muda, não por calendário.
+// Os campos prev*/prev2* só são gravados quando o valor muda, então a foto de uma versão passada
+// é reconstruída caindo para o valor mais recente quando aquela versão não registrou mudança.
+const CYCLE_LABELS = ['Atual', 'Atual −1', 'Atual −2'] as const;
 
-// Valor a exibir de um campo na carga escolhida (0=atual, 1=prev, 2=prev2, 3=prev3), com fallback
-// ao valor mais recente quando aquela carga não registrou mudança naquela célula.
-function cellValue(cur: number, p1: number | undefined, p2: number | undefined, p3: number | undefined, cycle: number): number {
+// Valor a exibir de um campo na versão escolhida (0=atual, 1=prev, 2=prev2), com fallback ao valor
+// mais recente quando aquela versão não registrou mudança naquela célula.
+function cellValue(cur: number, p1: number | undefined, p2: number | undefined, cycle: number): number {
   if (cycle === 0) return cur;
   if (cycle === 1) return p1 ?? cur;
-  if (cycle === 2) return p2 ?? p1 ?? cur;
-  return p3 ?? p2 ?? p1 ?? cur;
+  return p2 ?? p1 ?? cur;
 }
 // Empenhos de Eleição Suplementar (descrição inicia com "ELEICAO SUPLEMENTAR",
 // comparando sem acento e sem caixa).
@@ -474,10 +468,10 @@ export default function OrcamentoClient() {
 
       const col = collection(db, 'opl_empenhos');
 
-      // Lê o estado atual para registrar prev*/prev2*/prev3* com guarda por valor, espelhando
-      // scripts/opl-serpro/upload.mjs: só "rola" o histórico (3 ciclos) quando o valor muda
-      // — prev2→prev3, prev→prev2 e o atual vira o novo prev; se igual, o merge preserva o que
-      // havia. Upsert puro (não apaga nada).
+      // Lê o estado atual para registrar prev*/prev2* com guarda por valor, espelhando
+      // scripts/opl-serpro/upload.mjs: só "rola" o histórico (2 ciclos) quando o valor muda
+      // — o prev vira prev2 e o atual vira o novo prev; se igual, o merge preserva o que havia.
+      // Upsert puro (não apaga nada).
       setImportStatus('Lendo estado atual…');
       const snap = await getDocs(col);
       const existing = new Map(snap.docs.map(d => [d.id, d.data()]));
@@ -489,10 +483,6 @@ export default function OrcamentoClient() {
           const extra: Record<string, number | Timestamp> = {};
           if (cur) {
             if (cur.despesasEmpenhadas !== undefined && n.data.despesasEmpenhadas !== cur.despesasEmpenhadas) {
-              if (cur.prev2Empenhadas !== undefined) {
-                extra.prev3Empenhadas = cur.prev2Empenhadas;
-                extra.prev3EmpenhadasAt = cur.prev2EmpenhadasAt ?? runAt;
-              }
               if (cur.prevEmpenhadas !== undefined) {
                 extra.prev2Empenhadas = cur.prevEmpenhadas;
                 extra.prev2EmpenhadasAt = cur.prevEmpenhadasAt ?? runAt;
@@ -501,10 +491,6 @@ export default function OrcamentoClient() {
               extra.prevEmpenhadasAt = runAt;
             }
             if (cur.despesasLiquidadas !== undefined && n.data.despesasLiquidadas !== cur.despesasLiquidadas) {
-              if (cur.prev2Liquidadas !== undefined) {
-                extra.prev3Liquidadas = cur.prev2Liquidadas;
-                extra.prev3LiquidadasAt = cur.prev2LiquidadasAt ?? runAt;
-              }
               if (cur.prevLiquidadas !== undefined) {
                 extra.prev2Liquidadas = cur.prevLiquidadas;
                 extra.prev2LiquidadasAt = cur.prevLiquidadasAt ?? runAt;
@@ -513,10 +499,6 @@ export default function OrcamentoClient() {
               extra.prevLiquidadasAt = runAt;
             }
             if (cur.despesasPagas !== undefined && n.data.despesasPagas !== cur.despesasPagas) {
-              if (cur.prev2Pagas !== undefined) {
-                extra.prev3Pagas = cur.prev2Pagas;
-                extra.prev3PagasAt = cur.prev2PagasAt ?? runAt;
-              }
               if (cur.prevPagas !== undefined) {
                 extra.prev2Pagas = cur.prevPagas;
                 extra.prev2PagasAt = cur.prevPagasAt ?? runAt;
@@ -634,7 +616,7 @@ export default function OrcamentoClient() {
         {/* Empenhos */}
         <SectionHead
           title="Empenhos"
-          hint={`${tableRows.length} ${tableRows.length === 1 ? 'registro' : 'registros'}${cycle > 0 ? ` · carga ${CYCLE_LABELS[cycle]}` : ''}`}
+          hint={`${tableRows.length} ${tableRows.length === 1 ? 'registro' : 'registros'}${cycle > 0 ? ` · versão ${CYCLE_LABELS[cycle]}` : ''}`}
         />
         <section className="ds-card p-4 mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -728,27 +710,33 @@ export default function OrcamentoClient() {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            {/* Navegador por carga (segmentado): cada upload que muda valores é uma "carga".
-                Começa em "Atual"; recua até "Atual −3". Acesso direto a cada foto. */}
-            <div className="inline-flex items-stretch h-[34px] rounded-[6px] border border-border-strong bg-surface overflow-hidden">
+            {/* Navegador por versão (carga): começa em "Atual"; ◀ recua até "Atual −2", ▶ avança.
+                "Versão" porque o histórico rola por upload que muda valores, não por semana. */}
+            <div className="inline-flex items-stretch h-[34px] rounded-[6px] border border-border-strong bg-surface overflow-hidden text-ink-2">
               <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 text-[11px] font-medium text-ink-3 border-r border-border">
-                <History size={13} className="text-ink-4" /> Carga
+                <History size={13} className="text-ink-4" /> Versão
               </span>
-              {CYCLE_LABELS.map((label, i) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setCycle(i)}
-                  aria-pressed={cycle === i}
-                  className={`px-3 inline-flex items-center text-[12px] font-semibold border-l border-border first:border-l-0 transition-colors ${
-                    cycle === i
-                      ? 'bg-accent-soft text-accent'
-                      : 'bg-surface text-ink-2 hover:bg-surface-3 hover:text-ink'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => setCycle(c => Math.min(2, c + 1))}
+                disabled={cycle === 2}
+                aria-label="Versão mais antiga"
+                className="px-2 inline-flex items-center hover:bg-surface-3 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <span className={`px-2 inline-flex items-center justify-center min-w-[96px] text-center text-[12px] font-semibold border-x border-border ${cycle > 0 ? 'text-accent' : 'text-ink-2'}`}>
+                {CYCLE_LABELS[cycle]}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCycle(c => Math.max(0, c - 1))}
+                disabled={cycle === 0}
+                aria-label="Versão mais recente"
+                className="px-2 inline-flex items-center hover:bg-surface-3 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={15} />
+              </button>
             </div>
             {!isDefaultView && (
               <button
@@ -780,13 +768,13 @@ export default function OrcamentoClient() {
             </thead>
             <tbody className="divide-y divide-border-faint text-sm">
               {tableRows.map((d) => {
-                // Valor de cada coluna na carga selecionada (atual / −1 / −2 / −3).
-                const empVal = cellValue(d.despesasEmpenhadas, d.prevEmpenhadas, d.prev2Empenhadas, d.prev3Empenhadas, cycle);
-                const liqVal = cellValue(d.despesasLiquidadas, d.prevLiquidadas, d.prev2Liquidadas, d.prev3Liquidadas, cycle);
-                const pagVal = cellValue(d.despesasPagas, d.prevPagas, d.prev2Pagas, d.prev3Pagas, cycle);
+                // Valor de cada coluna na versão selecionada (atual / −1 / −2).
+                const empVal = cellValue(d.despesasEmpenhadas, d.prevEmpenhadas, d.prev2Empenhadas, cycle);
+                const liqVal = cellValue(d.despesasLiquidadas, d.prevLiquidadas, d.prev2Liquidadas, cycle);
+                const pagVal = cellValue(d.despesasPagas, d.prevPagas, d.prev2Pagas, cycle);
 
-                // Variação por coluna. "Atual" (carga 0): carga-a-carga (atual × prev), casando
-                // com o filtro "com alteração". Cargas passadas: mês-a-mês contra a mesma NE no mês
+                // Variação por coluna. "Atual" (versão 0): carga-a-carga (atual × prev), casando
+                // com o filtro "com alteração". Versões passadas: mês-a-mês contra a mesma NE no mês
                 // anterior — leitura útil mesmo onde o histórico ainda é esparso, e sem o
                 // "R$ 0,00 ↗" (se o mês anterior também era 0, varDir devolve null).
                 let empDir: VarDir, liqDir: VarDir, pagDir: VarDir;
@@ -800,9 +788,9 @@ export default function OrcamentoClient() {
                   pagTitle = pagDir ? `Pago: ${formatCurrency(d.prevPagas!)} → ${formatCurrency(d.despesasPagas)} em ${formatDate(d.prevPagasAt)}` : undefined;
                 } else {
                   const pm = byKey.get(`${prevMonthCode(d.mesCode)}__${d.notaEmpenho}`);
-                  const pmEmp = pm ? cellValue(pm.despesasEmpenhadas, pm.prevEmpenhadas, pm.prev2Empenhadas, pm.prev3Empenhadas, cycle) : undefined;
-                  const pmLiq = pm ? cellValue(pm.despesasLiquidadas, pm.prevLiquidadas, pm.prev2Liquidadas, pm.prev3Liquidadas, cycle) : undefined;
-                  const pmPag = pm ? cellValue(pm.despesasPagas, pm.prevPagas, pm.prev2Pagas, pm.prev3Pagas, cycle) : undefined;
+                  const pmEmp = pm ? cellValue(pm.despesasEmpenhadas, pm.prevEmpenhadas, pm.prev2Empenhadas, cycle) : undefined;
+                  const pmLiq = pm ? cellValue(pm.despesasLiquidadas, pm.prevLiquidadas, pm.prev2Liquidadas, cycle) : undefined;
+                  const pmPag = pm ? cellValue(pm.despesasPagas, pm.prevPagas, pm.prev2Pagas, cycle) : undefined;
                   empDir = varDir(empVal, pmEmp);
                   liqDir = varDir(liqVal, pmLiq);
                   pagDir = varDir(pagVal, pmPag);
