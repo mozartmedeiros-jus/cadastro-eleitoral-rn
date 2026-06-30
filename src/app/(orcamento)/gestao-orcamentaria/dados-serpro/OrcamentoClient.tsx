@@ -302,16 +302,15 @@ export default function OrcamentoClient() {
     });
   }, [data, mesFilter, natFilter, showSuplementar, showSemEntrada, matchesText]);
 
-  // Variação no ciclo exibido: compara o valor da foto selecionada com o do ciclo imediatamente
-  // mais antigo (reconstruídos por cellSnap a partir dos campos prev*/prev2*).
+  // "Apenas com alteração": conjunto estável, sempre baseado na última transição (atual × prev),
+  // independente do ciclo exibido. Assim a navegação entre semanas mantém as mesmas linhas e só
+  // troca os valores mostrados (via cellSnap no render) — em vez de esvaziar em ciclos sem prev2.
   const hasAnyChange = useMemo(
-    () => (d: Empenho) => {
-      const e = cellSnap(d.despesasEmpenhadas, d.prevEmpenhadas, d.prevEmpenhadasAt, d.prev2Empenhadas, d.prev2EmpenhadasAt, cycle);
-      const l = cellSnap(d.despesasLiquidadas, d.prevLiquidadas, d.prevLiquidadasAt, d.prev2Liquidadas, d.prev2LiquidadasAt, cycle);
-      const p = cellSnap(d.despesasPagas, d.prevPagas, d.prevPagasAt, d.prev2Pagas, d.prev2PagasAt, cycle);
-      return !!varDir(e.value, e.prev) || !!varDir(l.value, l.prev) || !!varDir(p.value, p.prev);
-    },
-    [cycle],
+    () => (d: Empenho) =>
+      !!varDir(d.despesasEmpenhadas, d.prevEmpenhadas) ||
+      !!varDir(d.despesasLiquidadas, d.prevLiquidadas) ||
+      !!varDir(d.despesasPagas, d.prevPagas),
+    [],
   );
 
   // Linhas da tabela: aplica o filtro "apenas com alteração" (não afeta gráfico/indicadores).
