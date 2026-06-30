@@ -122,9 +122,9 @@ async function runIngestion() {
   console.log(`🚀 Enviando ${allData.length} documentos para o Firestore...`);
   const collectionRef = db.collection('opl_empenhos');
 
-  // Lê o estado atual para registrar prev*/prev2* com guarda por valor: só "rola" o histórico
-  // quando o valor muda (se igual, omite e o merge preserva). Preserva 2 ciclos — ao mudar,
-  // o prev vira prev2 (com seu carimbo) e o atual vira o novo prev.
+  // Lê o estado atual para registrar prev*/prev2*/prev3* com guarda por valor: só "rola" o
+  // histórico quando o valor muda (se igual, omite e o merge preserva). Preserva 3 ciclos — ao
+  // mudar, prev2→prev3, prev→prev2 (com seus carimbos) e o atual vira o novo prev.
   console.log('⏳ Lendo estado atual para comparação semana-a-semana...');
   const existingSnap = await collectionRef.get();
   const existing = new Map();
@@ -138,6 +138,10 @@ async function runIngestion() {
     const cur = existing.get(item.docId);
     if (cur) {
       if (cur.despesasEmpenhadas !== undefined && item.data.despesasEmpenhadas !== cur.despesasEmpenhadas) {
+        if (cur.prev2Empenhadas !== undefined) {
+          item.data.prev3Empenhadas = cur.prev2Empenhadas;
+          item.data.prev3EmpenhadasAt = cur.prev2EmpenhadasAt ?? runAt;
+        }
         if (cur.prevEmpenhadas !== undefined) {
           item.data.prev2Empenhadas = cur.prevEmpenhadas;
           item.data.prev2EmpenhadasAt = cur.prevEmpenhadasAt ?? runAt;
@@ -146,6 +150,10 @@ async function runIngestion() {
         item.data.prevEmpenhadasAt = runAt;
       }
       if (cur.despesasLiquidadas !== undefined && item.data.despesasLiquidadas !== cur.despesasLiquidadas) {
+        if (cur.prev2Liquidadas !== undefined) {
+          item.data.prev3Liquidadas = cur.prev2Liquidadas;
+          item.data.prev3LiquidadasAt = cur.prev2LiquidadasAt ?? runAt;
+        }
         if (cur.prevLiquidadas !== undefined) {
           item.data.prev2Liquidadas = cur.prevLiquidadas;
           item.data.prev2LiquidadasAt = cur.prevLiquidadasAt ?? runAt;
@@ -154,6 +162,10 @@ async function runIngestion() {
         item.data.prevLiquidadasAt = runAt;
       }
       if (cur.despesasPagas !== undefined && item.data.despesasPagas !== cur.despesasPagas) {
+        if (cur.prev2Pagas !== undefined) {
+          item.data.prev3Pagas = cur.prev2Pagas;
+          item.data.prev3PagasAt = cur.prev2PagasAt ?? runAt;
+        }
         if (cur.prevPagas !== undefined) {
           item.data.prev2Pagas = cur.prevPagas;
           item.data.prev2PagasAt = cur.prevPagasAt ?? runAt;
