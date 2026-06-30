@@ -13,7 +13,10 @@ import {
   Loader2,
   X,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronLeft,
+  ChevronRight,
+  History
 } from 'lucide-react';
 import {
   collection,
@@ -69,13 +72,20 @@ interface Empenho {
   despesasPagas: number;
   ano: number;
   mesCode: string;
-  // Snapshot da semana anterior (gravado pela ingestão só quando o valor muda)
+  // Histórico preservado pela ingestão (só rola quando o valor muda): prev* = 1 ciclo atrás,
+  // prev2* = 2 ciclos atrás, cada um com o carimbo de quando aquele valor foi superado.
   prevEmpenhadas?: number;
   prevLiquidadas?: number;
   prevPagas?: number;
   prevEmpenhadasAt?: Timestamp;
   prevLiquidadasAt?: Timestamp;
   prevPagasAt?: Timestamp;
+  prev2Empenhadas?: number;
+  prev2Liquidadas?: number;
+  prev2Pagas?: number;
+  prev2EmpenhadasAt?: Timestamp;
+  prev2LiquidadasAt?: Timestamp;
+  prev2PagasAt?: Timestamp;
 }
 
 function formatCurrency(val: number) {
@@ -116,11 +126,31 @@ function formatMonth(mesCode: string) {
 // Tamanho máximo por lote do Firestore client SDK
 const BATCH_LIMIT = 500;
 
-// Direção da variação de um valor em relação à semana anterior da mesma NE.
+// Direção da variação de um valor em relação ao ciclo anterior da mesma NE.
 type VarDir = 'up' | 'down' | null;
 function varDir(curr: number, prev?: number): VarDir {
   if (prev === undefined || curr === prev) return null;
   return curr > prev ? 'up' : 'down';
+}
+
+// Navegação por ciclo da tabela: 0 = valores atuais, 1 = um ciclo atrás, 2 = dois ciclos atrás.
+// Os campos prev*/prev2* só são gravados quando o valor muda, então a foto de um ciclo passado
+// é reconstruída caindo para o valor mais recente quando aquele ciclo não registrou mudança.
+const CYCLE_LABELS = ['Atual', 'Semana anterior', '2 semanas atrás'] as const;
+
+// Foto de um campo (cur/prev1/prev2 + seus carimbos) no ciclo escolhido: devolve o valor a
+// exibir, o valor do ciclo imediatamente mais antigo (para a seta) e a data em que mudou.
+function cellSnap(
+  cur: number,
+  p1: number | undefined,
+  p1At: Timestamp | undefined,
+  p2: number | undefined,
+  p2At: Timestamp | undefined,
+  cycle: number,
+): { value: number; prev?: number; at?: Timestamp } {
+  if (cycle === 0) return { value: cur, prev: p1, at: p1At };
+  if (cycle === 1) return { value: p1 ?? cur, prev: p2, at: p2At };
+  return { value: p2 ?? p1 ?? cur };
 }
 // Empenhos de Eleição Suplementar (descrição inicia com "ELEICAO SUPLEMENTAR",
 // comparando sem acento e sem caixa).
@@ -174,6 +204,8 @@ export default function OrcamentoClient() {
   const [natFilter, setNatFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [changedFilter, setChangedFilter] = useState(false);
+  // Ciclo exibido na tabela: 0 = atual (padrão), 1 = semana anterior, 2 = 2 semanas atrás.
+  const [cycle, setCycle] = useState(0);
   const [showSuplementar, setShowSuplementar] = useState(false); // default: ocultar
   const [showSemEntrada, setShowSemEntrada] = useState(false); // default: ocultar
   const defaultSelectedRef = useRef(false);
@@ -270,14 +302,16 @@ export default function OrcamentoClient() {
     });
   }, [data, mesFilter, natFilter, showSuplementar, showSemEntrada, matchesText]);
 
-  // Variação semana-a-semana: compara o valor atual com o snapshot da semana anterior
-  // (campos prev*, gravados pela ingestão só quando o valor muda).
+  // Variação no ciclo exibido: compara o valor da foto selecionada com o do ciclo imediatamente
+  // mais antigo (reconstruídos por cellSnap a partir dos campos prev*/prev2*).
   const hasAnyChange = useMemo(
-    () => (d: Empenho) =>
-      !!varDir(d.despesasEmpenhadas, d.prevEmpenhadas) ||
-      !!varDir(d.despesasLiquidadas, d.prevLiquidadas) ||
-      !!varDir(d.despesasPagas, d.prevPagas),
-    [],
+    () => (d: Empenho) => {
+      const e = cellSnap(d.despesasEmpenhadas, d.prevEmpenhadas, d.prevEmpenhadasAt, d.prev2Empenhadas, d.prev2EmpenhadasAt, cycle);
+      const l = cellSnap(d.despesasLiquidadas, d.prevLiquidadas, d.prevLiquidadasAt, d.prev2Liquidadas, d.prev2LiquidadasAt, cycle);
+      const p = cellSnap(d.despesasPagas, d.prevPagas, d.prevPagasAt, d.prev2Pagas, d.prev2PagasAt, cycle);
+      return !!varDir(e.value, e.prev) || !!varDir(l.value, l.prev) || !!varDir(p.value, p.prev);
+    },
+    [cycle],
   );
 
   // Linhas da tabela: aplica o filtro "apenas com alteração" (não afeta gráfico/indicadores).
@@ -322,6 +356,7 @@ export default function OrcamentoClient() {
     setChangedFilter(false);
     setShowSuplementar(false);
     setShowSemEntrada(false);
+    setCycle(0);
   };
 
   const indicadoresHint = summaryMonth
@@ -427,9 +462,10 @@ export default function OrcamentoClient() {
 
       const col = collection(db, 'opl_empenhos');
 
-      // Lê o estado atual (semana anterior) para registrar prev* com guarda por valor,
-      // espelhando scripts/opl-serpro/upload.mjs: só "rola" o anterior quando o valor muda;
-      // se igual, omite e o merge preserva o que já estava. Upsert puro (não apaga nada).
+      // Lê o estado atual para registrar prev*/prev2* com guarda por valor, espelhando
+      // scripts/opl-serpro/upload.mjs: só "rola" o histórico (2 ciclos) quando o valor muda
+      // — o prev vira prev2 e o atual vira o novo prev; se igual, o merge preserva o que havia.
+      // Upsert puro (não apaga nada).
       setImportStatus('Lendo estado atual…');
       const snap = await getDocs(col);
       const existing = new Map(snap.docs.map(d => [d.id, d.data()]));
@@ -441,14 +477,26 @@ export default function OrcamentoClient() {
           const extra: Record<string, number | Timestamp> = {};
           if (cur) {
             if (cur.despesasEmpenhadas !== undefined && n.data.despesasEmpenhadas !== cur.despesasEmpenhadas) {
+              if (cur.prevEmpenhadas !== undefined) {
+                extra.prev2Empenhadas = cur.prevEmpenhadas;
+                extra.prev2EmpenhadasAt = cur.prevEmpenhadasAt ?? runAt;
+              }
               extra.prevEmpenhadas = cur.despesasEmpenhadas;
               extra.prevEmpenhadasAt = runAt;
             }
             if (cur.despesasLiquidadas !== undefined && n.data.despesasLiquidadas !== cur.despesasLiquidadas) {
+              if (cur.prevLiquidadas !== undefined) {
+                extra.prev2Liquidadas = cur.prevLiquidadas;
+                extra.prev2LiquidadasAt = cur.prevLiquidadasAt ?? runAt;
+              }
               extra.prevLiquidadas = cur.despesasLiquidadas;
               extra.prevLiquidadasAt = runAt;
             }
             if (cur.despesasPagas !== undefined && n.data.despesasPagas !== cur.despesasPagas) {
+              if (cur.prevPagas !== undefined) {
+                extra.prev2Pagas = cur.prevPagas;
+                extra.prev2PagasAt = cur.prevPagasAt ?? runAt;
+              }
               extra.prevPagas = cur.despesasPagas;
               extra.prevPagasAt = runAt;
             }
@@ -562,7 +610,7 @@ export default function OrcamentoClient() {
         {/* Empenhos */}
         <SectionHead
           title="Empenhos"
-          hint={`${tableRows.length} ${tableRows.length === 1 ? 'registro' : 'registros'}`}
+          hint={`${tableRows.length} ${tableRows.length === 1 ? 'registro' : 'registros'}${cycle > 0 ? ` · foto de ${CYCLE_LABELS[cycle].toLowerCase()}` : ''}`}
         />
         <section className="ds-card p-4 mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -655,15 +703,44 @@ export default function OrcamentoClient() {
               <Filter size={14} /> Somente empenho sem entrada
             </button>
           </div>
-          {!isDefaultView && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border border-danger-border bg-danger-soft text-danger text-[12.5px] font-medium hover:brightness-95 transition"
-            >
-              <X size={14} /> Limpar filtros
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Navegador de ciclo: começa em "Atual"; ◀ recua para a semana mais antiga, ▶ avança. */}
+            <div className="inline-flex items-stretch h-[34px] rounded-[6px] border border-border-strong bg-surface overflow-hidden text-ink-2">
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 text-[11px] font-medium text-ink-3 border-r border-border">
+                <History size={13} className="text-ink-4" /> Semana
+              </span>
+              <button
+                type="button"
+                onClick={() => setCycle(c => Math.min(2, c + 1))}
+                disabled={cycle === 2}
+                aria-label="Semana mais antiga"
+                className="px-2 inline-flex items-center hover:bg-surface-3 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <span className={`px-2 inline-flex items-center justify-center min-w-[120px] text-center text-[12px] font-semibold border-x border-border ${cycle > 0 ? 'text-accent' : 'text-ink-2'}`}>
+                {CYCLE_LABELS[cycle]}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCycle(c => Math.max(0, c - 1))}
+                disabled={cycle === 0}
+                aria-label="Semana mais recente"
+                className="px-2 inline-flex items-center hover:bg-surface-3 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+            {!isDefaultView && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-2 h-[34px] px-3 rounded-[6px] border border-danger-border bg-danger-soft text-danger text-[12.5px] font-medium hover:brightness-95 transition"
+              >
+                <X size={14} /> Limpar filtros
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
@@ -684,10 +761,13 @@ export default function OrcamentoClient() {
             </thead>
             <tbody className="divide-y divide-border-faint text-sm">
               {tableRows.map((d) => {
-                // Variação vs. semana anterior da mesma NE, por coluna (campos prev*).
-                const empDir = varDir(d.despesasEmpenhadas, d.prevEmpenhadas);
-                const liqDir = varDir(d.despesasLiquidadas, d.prevLiquidadas);
-                const pagDir = varDir(d.despesasPagas, d.prevPagas);
+                // Foto de cada coluna no ciclo selecionado (atual / anterior / 2 atrás).
+                const emp = cellSnap(d.despesasEmpenhadas, d.prevEmpenhadas, d.prevEmpenhadasAt, d.prev2Empenhadas, d.prev2EmpenhadasAt, cycle);
+                const liq = cellSnap(d.despesasLiquidadas, d.prevLiquidadas, d.prevLiquidadasAt, d.prev2Liquidadas, d.prev2LiquidadasAt, cycle);
+                const pag = cellSnap(d.despesasPagas, d.prevPagas, d.prevPagasAt, d.prev2Pagas, d.prev2PagasAt, cycle);
+                const empDir = varDir(emp.value, emp.prev);
+                const liqDir = varDir(liq.value, liq.prev);
+                const pagDir = varDir(pag.value, pag.prev);
 
                 return (
                   <tr key={d.id} className="row-hover">
@@ -708,27 +788,27 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={empDir ? `Empenhado alterado em ${formatDate(d.prevEmpenhadasAt)} · anterior ${formatCurrency(d.prevEmpenhadas!)}` : undefined}
+                        title={empDir ? `Empenhado alterado em ${formatDate(emp.at)} · anterior ${formatCurrency(emp.prev!)}` : undefined}
                       >
-                        <span className="font-bold text-ink num">{formatCurrency(d.despesasEmpenhadas)}</span>
+                        <span className="font-bold text-ink num">{formatCurrency(emp.value)}</span>
                         <VarArrow dir={empDir} />
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={liqDir ? `Liquidado alterado em ${formatDate(d.prevLiquidadasAt)} · anterior ${formatCurrency(d.prevLiquidadas!)}` : undefined}
+                        title={liqDir ? `Liquidado alterado em ${formatDate(liq.at)} · anterior ${formatCurrency(liq.prev!)}` : undefined}
                       >
-                        <span className="num text-ink-2">{formatCurrency(d.despesasLiquidadas)}</span>
+                        <span className="num text-ink-2">{formatCurrency(liq.value)}</span>
                         <VarArrow dir={liqDir} />
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={pagDir ? `Pago alterado em ${formatDate(d.prevPagasAt)} · anterior ${formatCurrency(d.prevPagas!)}` : undefined}
+                        title={pagDir ? `Pago alterado em ${formatDate(pag.at)} · anterior ${formatCurrency(pag.prev!)}` : undefined}
                       >
-                        <span className="num text-ink-2">{formatCurrency(d.despesasPagas)}</span>
+                        <span className="num text-ink-2">{formatCurrency(pag.value)}</span>
                         <VarArrow dir={pagDir} />
                       </div>
                     </td>

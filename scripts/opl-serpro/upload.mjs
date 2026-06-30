@@ -122,8 +122,9 @@ async function runIngestion() {
   console.log(`🚀 Enviando ${allData.length} documentos para o Firestore...`);
   const collectionRef = db.collection('opl_empenhos');
 
-  // Lê o estado atual (semana anterior) para registrar prev* com guarda por valor:
-  // só "rola" o anterior quando o valor muda; se igual, omite (merge preserva o anterior).
+  // Lê o estado atual para registrar prev*/prev2* com guarda por valor: só "rola" o histórico
+  // quando o valor muda (se igual, omite e o merge preserva). Preserva 2 ciclos — ao mudar,
+  // o prev vira prev2 (com seu carimbo) e o atual vira o novo prev.
   console.log('⏳ Lendo estado atual para comparação semana-a-semana...');
   const existingSnap = await collectionRef.get();
   const existing = new Map();
@@ -137,14 +138,26 @@ async function runIngestion() {
     const cur = existing.get(item.docId);
     if (cur) {
       if (cur.despesasEmpenhadas !== undefined && item.data.despesasEmpenhadas !== cur.despesasEmpenhadas) {
+        if (cur.prevEmpenhadas !== undefined) {
+          item.data.prev2Empenhadas = cur.prevEmpenhadas;
+          item.data.prev2EmpenhadasAt = cur.prevEmpenhadasAt ?? runAt;
+        }
         item.data.prevEmpenhadas = cur.despesasEmpenhadas;
         item.data.prevEmpenhadasAt = runAt;
       }
       if (cur.despesasLiquidadas !== undefined && item.data.despesasLiquidadas !== cur.despesasLiquidadas) {
+        if (cur.prevLiquidadas !== undefined) {
+          item.data.prev2Liquidadas = cur.prevLiquidadas;
+          item.data.prev2LiquidadasAt = cur.prevLiquidadasAt ?? runAt;
+        }
         item.data.prevLiquidadas = cur.despesasLiquidadas;
         item.data.prevLiquidadasAt = runAt;
       }
       if (cur.despesasPagas !== undefined && item.data.despesasPagas !== cur.despesasPagas) {
+        if (cur.prevPagas !== undefined) {
+          item.data.prev2Pagas = cur.prevPagas;
+          item.data.prev2PagasAt = cur.prevPagasAt ?? runAt;
+        }
         item.data.prevPagas = cur.despesasPagas;
         item.data.prevPagasAt = runAt;
       }
