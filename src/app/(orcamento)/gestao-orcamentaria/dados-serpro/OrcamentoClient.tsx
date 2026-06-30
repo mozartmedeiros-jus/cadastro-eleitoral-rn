@@ -123,6 +123,12 @@ function formatMonth(mesCode: string) {
   return `${MESES_ABREV[Number(mes) - 1] ?? mes}/${ano}`;
 }
 
+// "2026-06" → "2026-05" (vira o ano em janeiro). Usado para a variação mês-a-mês.
+function prevMonthCode(mesCode: string) {
+  const [ano, mes] = mesCode.split('-').map(Number);
+  return mes <= 1 ? `${ano - 1}-12` : `${ano}-${String(mes - 1).padStart(2, '0')}`;
+}
+
 // Tamanho máximo por lote do Firestore client SDK
 const BATCH_LIMIT = 500;
 
@@ -161,8 +167,8 @@ function semEntrada(d: Empenho) {
 }
 
 function VarArrow({ dir }: { dir: VarDir }) {
-  if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou em relação à semana anterior" />;
-  if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu em relação à semana anterior" />;
+  if (dir === 'up') return <TrendingUp size={14} className="text-accent shrink-0" aria-label="aumentou" />;
+  if (dir === 'down') return <TrendingDown size={14} className="text-danger shrink-0" aria-label="diminuiu" />;
   return null;
 }
 
@@ -240,6 +246,13 @@ export default function OrcamentoClient() {
 
     return () => unsub();
   }, [canEdit]);
+
+  // Índice por "mesCode__NE" para achar a mesma NE no mês anterior (variação mês-a-mês).
+  const byKey = useMemo(() => {
+    const m = new Map<string, Empenho>();
+    data.forEach(d => m.set(`${d.mesCode}__${d.notaEmpenho}`, d));
+    return m;
+  }, [data]);
 
   // Opções para os filtros
   const uniqueMeses = useMemo(() => {
@@ -757,10 +770,33 @@ export default function OrcamentoClient() {
                 const empVal = cellValue(d.despesasEmpenhadas, d.prevEmpenhadas, d.prev2Empenhadas, cycle);
                 const liqVal = cellValue(d.despesasLiquidadas, d.prevLiquidadas, d.prev2Liquidadas, cycle);
                 const pagVal = cellValue(d.despesasPagas, d.prevPagas, d.prev2Pagas, cycle);
-                // Setas/variação: sempre a última transição (atual × semana anterior), estáveis entre ciclos.
-                const empDir = varDir(d.despesasEmpenhadas, d.prevEmpenhadas);
-                const liqDir = varDir(d.despesasLiquidadas, d.prevLiquidadas);
-                const pagDir = varDir(d.despesasPagas, d.prevPagas);
+
+                // Variação por coluna. "Atual" (ciclo 0): semana-a-semana (atual × prev), casando
+                // com o filtro "com alteração". Ciclos passados: mês-a-mês contra a mesma NE no mês
+                // anterior — leitura útil mesmo onde o histórico semanal ainda é esparso, e sem o
+                // "R$ 0,00 ↗" (se o mês anterior também era 0, varDir devolve null).
+                let empDir: VarDir, liqDir: VarDir, pagDir: VarDir;
+                let empTitle: string | undefined, liqTitle: string | undefined, pagTitle: string | undefined;
+                if (cycle === 0) {
+                  empDir = varDir(d.despesasEmpenhadas, d.prevEmpenhadas);
+                  liqDir = varDir(d.despesasLiquidadas, d.prevLiquidadas);
+                  pagDir = varDir(d.despesasPagas, d.prevPagas);
+                  empTitle = empDir ? `Empenhado: ${formatCurrency(d.prevEmpenhadas!)} → ${formatCurrency(d.despesasEmpenhadas)} em ${formatDate(d.prevEmpenhadasAt)}` : undefined;
+                  liqTitle = liqDir ? `Liquidado: ${formatCurrency(d.prevLiquidadas!)} → ${formatCurrency(d.despesasLiquidadas)} em ${formatDate(d.prevLiquidadasAt)}` : undefined;
+                  pagTitle = pagDir ? `Pago: ${formatCurrency(d.prevPagas!)} → ${formatCurrency(d.despesasPagas)} em ${formatDate(d.prevPagasAt)}` : undefined;
+                } else {
+                  const pm = byKey.get(`${prevMonthCode(d.mesCode)}__${d.notaEmpenho}`);
+                  const pmEmp = pm ? cellValue(pm.despesasEmpenhadas, pm.prevEmpenhadas, pm.prev2Empenhadas, cycle) : undefined;
+                  const pmLiq = pm ? cellValue(pm.despesasLiquidadas, pm.prevLiquidadas, pm.prev2Liquidadas, cycle) : undefined;
+                  const pmPag = pm ? cellValue(pm.despesasPagas, pm.prevPagas, pm.prev2Pagas, cycle) : undefined;
+                  empDir = varDir(empVal, pmEmp);
+                  liqDir = varDir(liqVal, pmLiq);
+                  pagDir = varDir(pagVal, pmPag);
+                  const mesAnt = formatMonth(prevMonthCode(d.mesCode));
+                  empTitle = empDir ? `Empenhado vs ${mesAnt}: ${formatCurrency(pmEmp!)} → ${formatCurrency(empVal)}` : undefined;
+                  liqTitle = liqDir ? `Liquidado vs ${mesAnt}: ${formatCurrency(pmLiq!)} → ${formatCurrency(liqVal)}` : undefined;
+                  pagTitle = pagDir ? `Pago vs ${mesAnt}: ${formatCurrency(pmPag!)} → ${formatCurrency(pagVal)}` : undefined;
+                }
 
                 return (
                   <tr key={d.id} className="row-hover">
@@ -781,7 +817,7 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={empDir ? `Empenhado: ${formatCurrency(d.prevEmpenhadas!)} → ${formatCurrency(d.despesasEmpenhadas)} em ${formatDate(d.prevEmpenhadasAt)}` : undefined}
+                        title={empTitle}
                       >
                         <span className="font-bold text-ink num">{formatCurrency(empVal)}</span>
                         <VarArrow dir={empDir} />
@@ -790,7 +826,7 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={liqDir ? `Liquidado: ${formatCurrency(d.prevLiquidadas!)} → ${formatCurrency(d.despesasLiquidadas)} em ${formatDate(d.prevLiquidadasAt)}` : undefined}
+                        title={liqTitle}
                       >
                         <span className="num text-ink-2">{formatCurrency(liqVal)}</span>
                         <VarArrow dir={liqDir} />
@@ -799,7 +835,7 @@ export default function OrcamentoClient() {
                     <td className="px-4 py-4 text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
-                        title={pagDir ? `Pago: ${formatCurrency(d.prevPagas!)} → ${formatCurrency(d.despesasPagas)} em ${formatDate(d.prevPagasAt)}` : undefined}
+                        title={pagTitle}
                       >
                         <span className="num text-ink-2">{formatCurrency(pagVal)}</span>
                         <VarArrow dir={pagDir} />
