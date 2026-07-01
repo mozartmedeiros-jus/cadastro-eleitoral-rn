@@ -55,7 +55,7 @@ export default function PontosApoioPanel({
   const [search, setSearch] = useState('');
   const [selectedZona, setSelectedZona] = useState('');
   const [selectedMuni, setSelectedMuni] = useState('');
-  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'demaisTransmissao' | 'apoio' | 'apoioTransmissao' | 'demais'>('');
+  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'semTransmissao' | 'semTransmissaoMun' | 'semTransmissaoZona' | 'demaisTransmissao' | 'apoio' | 'apoioTransmissao' | 'demais'>('');
 
   // Paginação (mesmo padrão de CadastroClient)
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,11 +86,32 @@ export default function PontosApoioPanel({
     onControlsChange?.({ lastUpdated, refreshing, refresh: () => load() });
   }, [lastUpdated, refreshing, load, onControlsChange]);
 
+  // Municípios/zonas com ao menos um ponto de transmissão real — cálculo global (todo o CSV,
+  // não afetado pelos filtros aplicados), usado pelos filtros "sem transmissão (mun.)"/(zona)".
+  const municipiosComTransmissao = useMemo(() => {
+    const set = new Set<string>();
+    pontos.forEach((p) => {
+      if (p.municipio && p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO') set.add(p.municipio);
+    });
+    return set;
+  }, [pontos]);
+
+  const zonasComTransmissao = useMemo(() => {
+    const set = new Set<string>();
+    pontos.forEach((p) => {
+      if (p.zona && p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO') set.add(p.zona);
+    });
+    return set;
+  }, [pontos]);
+
   // Filtragem facetada: as opções de cada filtro respeitam a seleção de todos os outros
   const facetOptions = useMemo(() => {
     const zonas = new Set<string>();
     const munis = new Set<string>();
-    const flags = { transmissao: false, demaisTransmissao: false, apoio: false, apoioTransmissao: false, demais: false };
+    const flags = {
+      transmissao: false, semTransmissao: false, semTransmissaoMun: false, semTransmissaoZona: false,
+      demaisTransmissao: false, apoio: false, apoioTransmissao: false, demais: false,
+    };
 
     pontos.forEach((p) => {
       const apoioUp = p.apoio.trim().toUpperCase();
@@ -98,11 +119,16 @@ export default function PontosApoioPanel({
       const isDemais = apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
       const isTransmissao = p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO';
       const isDemaisTransm = p.transmissao && !isTransmissao;
+      const isSemTransmissaoMun = !!p.municipio && !municipiosComTransmissao.has(p.municipio);
+      const isSemTransmissaoZona = !!p.zona && !zonasComTransmissao.has(p.zona);
       const matchZona = selectedZona === '' || p.zona === selectedZona;
       const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
       const matchFlag =
         selectedFlag === '' ? true
         : selectedFlag === 'transmissao' ? isTransmissao
+        : selectedFlag === 'semTransmissao' ? !isTransmissao
+        : selectedFlag === 'semTransmissaoMun' ? isSemTransmissaoMun
+        : selectedFlag === 'semTransmissaoZona' ? isSemTransmissaoZona
         : selectedFlag === 'demaisTransmissao' ? isDemaisTransm
         : selectedFlag === 'apoio' ? isApoio
         : selectedFlag === 'apoioTransmissao' ? isApoio && isTransmissao
@@ -112,6 +138,9 @@ export default function PontosApoioPanel({
       if (p.municipio && matchZona && matchFlag) munis.add(p.municipio);
       if (matchZona && matchMuni) {
         if (isTransmissao) flags.transmissao = true;
+        if (!isTransmissao) flags.semTransmissao = true;
+        if (isSemTransmissaoMun) flags.semTransmissaoMun = true;
+        if (isSemTransmissaoZona) flags.semTransmissaoZona = true;
         if (isDemaisTransm) flags.demaisTransmissao = true;
         if (isApoio) flags.apoio = true;
         if (isApoio && isTransmissao) flags.apoioTransmissao = true;
@@ -129,7 +158,7 @@ export default function PontosApoioPanel({
       municipios: Array.from(munis).sort((a, b) => a.localeCompare(b)),
       flags,
     };
-  }, [pontos, selectedZona, selectedMuni, selectedFlag]);
+  }, [pontos, selectedZona, selectedMuni, selectedFlag, municipiosComTransmissao, zonasComTransmissao]);
 
   // Auto-clear: se a seleção atual deixou de ser válida após o cruzamento, limpa
   useEffect(() => {
@@ -148,16 +177,21 @@ export default function PontosApoioPanel({
       const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
       const apoioUp = p.apoio.trim().toUpperCase();
       const isTransmissao = p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO';
+      const isSemTransmissaoMun = !!p.municipio && !municipiosComTransmissao.has(p.municipio);
+      const isSemTransmissaoZona = !!p.zona && !zonasComTransmissao.has(p.zona);
       const matchFlag =
         selectedFlag === '' ? true
         : selectedFlag === 'transmissao' ? isTransmissao
+        : selectedFlag === 'semTransmissao' ? !isTransmissao
+        : selectedFlag === 'semTransmissaoMun' ? isSemTransmissaoMun
+        : selectedFlag === 'semTransmissaoZona' ? isSemTransmissaoZona
         : selectedFlag === 'demaisTransmissao' ? p.transmissao && !isTransmissao
         : selectedFlag === 'apoio' ? apoioUp === 'APOIO'
         : selectedFlag === 'apoioTransmissao' ? apoioUp === 'APOIO' && isTransmissao
         : apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
       return matchSearch && matchZona && matchMuni && matchFlag;
     });
-  }, [pontos, search, selectedZona, selectedMuni, selectedFlag]);
+  }, [pontos, search, selectedZona, selectedMuni, selectedFlag, municipiosComTransmissao, zonasComTransmissao]);
 
   useEffect(() => {
     onFilteredChange(filtered);
@@ -170,6 +204,7 @@ export default function PontosApoioPanel({
   const kpis = useMemo(() => ({
     totalLocais: filtered.length,
     totalZonas: new Set(filtered.map((p) => p.zona).filter(Boolean)).size,
+    totalMunicipios: new Set(filtered.map((p) => p.municipio).filter(Boolean)).size,
     totalTransmissao: filtered.filter((p) => p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO').length,
     totalApoio: filtered.filter((p) => p.apoio === 'APOIO').length,
   }), [filtered]);
@@ -215,12 +250,18 @@ export default function PontosApoioPanel({
     <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
       {/* ── KPIs ────────────────────────────────────────────────── */}
       <SectionHead title="Indicadores" hint="conforme filtros aplicados" />
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-7">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-7">
         <div className="relative ds-card p-[18px] overflow-hidden">
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Zonas</div>
           <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalZonas}</div>
           <div className="mt-[7px] text-[11px] text-ink-4">zonas distintas</div>
+        </div>
+        <div className="relative ds-card p-[18px] overflow-hidden">
+          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-3">Municípios</div>
+          <div className="num mt-2 text-[30px] font-bold tracking-[-0.025em] leading-none text-ink">{kpis.totalMunicipios}</div>
+          <div className="mt-[7px] text-[11px] text-ink-4">municípios distintos</div>
         </div>
         <div className="relative ds-card p-[18px] overflow-hidden">
           <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent" />
@@ -293,13 +334,16 @@ export default function PontosApoioPanel({
             <select
               aria-label="Filtrar por característica"
               value={selectedFlag}
-              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'demaisTransmissao' | 'apoio' | 'apoioTransmissao' | 'demais')}
+              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'semTransmissao' | 'semTransmissaoMun' | 'semTransmissaoZona' | 'demaisTransmissao' | 'apoio' | 'apoioTransmissao' | 'demais')}
               className="ds-select w-full pl-3 pr-9"
             >
               <option value="">Todas as características</option>
-              {(facetOptions.flags.transmissao || facetOptions.flags.demaisTransmissao) && (
+              {(facetOptions.flags.transmissao || facetOptions.flags.semTransmissao || facetOptions.flags.semTransmissaoMun || facetOptions.flags.semTransmissaoZona || facetOptions.flags.demaisTransmissao) && (
                 <optgroup label="Transmissão">
                   {facetOptions.flags.transmissao && <option value="transmissao">Com transmissão</option>}
+                  {facetOptions.flags.semTransmissao && <option value="semTransmissao">Sem transmissão</option>}
+                  {facetOptions.flags.semTransmissaoMun && <option value="semTransmissaoMun">Sem transmissão (mun.)</option>}
+                  {facetOptions.flags.semTransmissaoZona && <option value="semTransmissaoZona">Sem transmissão (zona)</option>}
                   {facetOptions.flags.demaisTransmissao && <option value="demaisTransmissao">Demais status</option>}
                 </optgroup>
               )}
