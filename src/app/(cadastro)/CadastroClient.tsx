@@ -437,7 +437,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
         `"${p.endereco.replace(/"/g, '""')}"`,
         `"${p.funcionamento.replace(/"/g, '""')}"`,
         `"${p.apoio.replace(/"/g, '""')}"`,
-        p.transmissao ? 'Sim' : '',
+        `"${(p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO' ? 'Sim' : p.transmissaoRaw).replace(/"/g, '""')}"`,
       ];
       csvRows.push(row.join(';'));
     });
@@ -587,7 +587,7 @@ export default function CadastroClient({ initialData }: { initialData: LocationD
                 : 'text-ink-2 hover:text-ink hover:bg-surface-3 border border-transparent'
             }`}
           >
-            Pontos de Apoio
+            Apoio &amp; Transmissão
           </button>
           <button
             type="button"
