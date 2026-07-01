@@ -95,6 +95,25 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-07-01 (Apoio & Transmissão: filtros "sem transmissão" por local/mun./zona + KPI Municípios)**:
+  a pedido do usuário, continuação da sessão anterior na mesma visão (`PontosApoioPanel.tsx`).
+  - **Filtro "Sem transmissão"** (por local, `optgroup Transmissão`): disjunto de "Com transmissão",
+    reaproveitando o `matchFlag` facetado já existente.
+  - **Filtros agregados "Sem transmissão (mun.)" e "Sem transmissão (zona)"**: município/zona
+    **sem nenhum ponto** com `transmissaoRaw === 'TRANSMISSÃO'` (cálculo global via
+    `municipiosComTransmissao`/`zonasComTransmissao`, `useMemo` sobre todo o CSV — não afetado pelos
+    filtros aplicados). O encadeamento com os selects de Zona/Município é automático: mesma
+    infraestrutura facetada genérica usada pelos demais filtros, sem código especial.
+  - **KPI "Municípios"** adicionado ao painel de indicadores, entre Zonas e Locais (grid
+    `lg:grid-cols-4` → `lg:grid-cols-5`).
+  - Verificação via browser headless (Chrome + puppeteer-core, sem servidor de testes dedicado no
+    repo): confirmado que os agregados por município/zona não têm overlap com quem tem transmissão,
+    e que os selects de Zona/Município encadeiam corretamente.
+  - `npm run build` OK. **Git:** integrado à `main` via **PR #42**
+    (`feat/pontos-apoio-filtros-sem-transmissao`), merge fast-forward `f2c7f61` (state MERGED);
+    branch removida (local e remota). Deploy `firebase deploy --only hosting` em produção
+    (`https://eleicoes2026-dadoszonas.web.app`), 2×: uma vez ainda sem commit (iteração rápida) e
+    novamente após o merge do PR (build a partir da `main` já sincronizada).
 - **2026-07-01 (visão "Apoio & Transmissão": coluna com valor real, badge REMOVER, filtro por status)**:
   a pedido do usuário, ajustes na visão de Pontos de Apoio da página `/` (`PontosApoioPanel.tsx`,
   `pontos-apoio-csv.ts`, CSV ao vivo — sem Firestore/rules) e rename do seletor.
