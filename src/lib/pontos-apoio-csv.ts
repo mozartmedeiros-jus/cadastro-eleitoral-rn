@@ -13,6 +13,7 @@ export interface PontoApoio {
   endereco: string;
   funcionamento: string;
   transmissao: boolean;
+  transmissaoRaw: string;
   apoio: string;
 }
 
@@ -46,7 +47,8 @@ export async function fetchPontos(url: string): Promise<PontoApoio[]> {
     const local = String(row[2] ?? '').trim();
     const endereco = String(row[3] ?? '').trim();
     const funcionamento = String(row[4] ?? '').trim();
-    const transmissao = String(row[5] ?? '').trim() !== '';
+    const transmissaoRaw = String(row[5] ?? '').trim();
+    const transmissao = transmissaoRaw !== '';
     const apoio = String(row[6] ?? '').trim();
 
     // Pula linhas inteiramente vazias.
@@ -54,7 +56,7 @@ export async function fetchPontos(url: string): Promise<PontoApoio[]> {
       continue;
     }
 
-    out.push({ zona, municipio, local, endereco, funcionamento, transmissao, apoio });
+    out.push({ zona, municipio, local, endereco, funcionamento, transmissao, transmissaoRaw, apoio });
   }
 
   return out;

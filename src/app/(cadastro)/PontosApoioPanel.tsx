@@ -55,7 +55,7 @@ export default function PontosApoioPanel({
   const [search, setSearch] = useState('');
   const [selectedZona, setSelectedZona] = useState('');
   const [selectedMuni, setSelectedMuni] = useState('');
-  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'apoio' | 'apoioTransmissao' | 'demais'>('');
+  const [selectedFlag, setSelectedFlag] = useState<'' | 'transmissao' | 'demaisTransmissao' | 'apoio' | 'apoioTransmissao' | 'demais'>('');
 
   // Paginação (mesmo padrão de CadastroClient)
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,27 +90,31 @@ export default function PontosApoioPanel({
   const facetOptions = useMemo(() => {
     const zonas = new Set<string>();
     const munis = new Set<string>();
-    const flags = { transmissao: false, apoio: false, apoioTransmissao: false, demais: false };
+    const flags = { transmissao: false, demaisTransmissao: false, apoio: false, apoioTransmissao: false, demais: false };
 
     pontos.forEach((p) => {
       const apoioUp = p.apoio.trim().toUpperCase();
       const isApoio = apoioUp === 'APOIO';
       const isDemais = apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
+      const isTransmissao = p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO';
+      const isDemaisTransm = p.transmissao && !isTransmissao;
       const matchZona = selectedZona === '' || p.zona === selectedZona;
       const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
       const matchFlag =
         selectedFlag === '' ? true
-        : selectedFlag === 'transmissao' ? p.transmissao
+        : selectedFlag === 'transmissao' ? isTransmissao
+        : selectedFlag === 'demaisTransmissao' ? isDemaisTransm
         : selectedFlag === 'apoio' ? isApoio
-        : selectedFlag === 'apoioTransmissao' ? isApoio && p.transmissao
+        : selectedFlag === 'apoioTransmissao' ? isApoio && isTransmissao
         : isDemais;
 
       if (p.zona && matchMuni && matchFlag) zonas.add(p.zona);
       if (p.municipio && matchZona && matchFlag) munis.add(p.municipio);
       if (matchZona && matchMuni) {
-        if (p.transmissao) flags.transmissao = true;
+        if (isTransmissao) flags.transmissao = true;
+        if (isDemaisTransm) flags.demaisTransmissao = true;
         if (isApoio) flags.apoio = true;
-        if (isApoio && p.transmissao) flags.apoioTransmissao = true;
+        if (isApoio && isTransmissao) flags.apoioTransmissao = true;
         if (isDemais) flags.demais = true;
       }
     });
@@ -143,11 +147,13 @@ export default function PontosApoioPanel({
       const matchZona = selectedZona === '' || p.zona === selectedZona;
       const matchMuni = selectedMuni === '' || p.municipio === selectedMuni;
       const apoioUp = p.apoio.trim().toUpperCase();
+      const isTransmissao = p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO';
       const matchFlag =
         selectedFlag === '' ? true
-        : selectedFlag === 'transmissao' ? p.transmissao
+        : selectedFlag === 'transmissao' ? isTransmissao
+        : selectedFlag === 'demaisTransmissao' ? p.transmissao && !isTransmissao
         : selectedFlag === 'apoio' ? apoioUp === 'APOIO'
-        : selectedFlag === 'apoioTransmissao' ? apoioUp === 'APOIO' && p.transmissao
+        : selectedFlag === 'apoioTransmissao' ? apoioUp === 'APOIO' && isTransmissao
         : apoioUp === 'INCLUIR' || apoioUp === 'ALTERAR' || apoioUp === 'EXCLUIR';
       return matchSearch && matchZona && matchMuni && matchFlag;
     });
@@ -164,7 +170,7 @@ export default function PontosApoioPanel({
   const kpis = useMemo(() => ({
     totalLocais: filtered.length,
     totalZonas: new Set(filtered.map((p) => p.zona).filter(Boolean)).size,
-    totalTransmissao: filtered.filter((p) => p.transmissao).length,
+    totalTransmissao: filtered.filter((p) => p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO').length,
     totalApoio: filtered.filter((p) => p.apoio === 'APOIO').length,
   }), [filtered]);
 
@@ -287,14 +293,27 @@ export default function PontosApoioPanel({
             <select
               aria-label="Filtrar por característica"
               value={selectedFlag}
-              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'apoio' | 'apoioTransmissao' | 'demais')}
+              onChange={(e) => setSelectedFlag(e.target.value as '' | 'transmissao' | 'demaisTransmissao' | 'apoio' | 'apoioTransmissao' | 'demais')}
               className="ds-select w-full pl-3 pr-9"
             >
               <option value="">Todas as características</option>
-              {facetOptions.flags.transmissao && <option value="transmissao">Com transmissão</option>}
-              {facetOptions.flags.apoio && <option value="apoio">É ponto de apoio</option>}
-              {facetOptions.flags.apoioTransmissao && <option value="apoioTransmissao">Apoio e transmissão</option>}
-              {facetOptions.flags.demais && <option value="demais">Demais status</option>}
+              {(facetOptions.flags.transmissao || facetOptions.flags.demaisTransmissao) && (
+                <optgroup label="Transmissão">
+                  {facetOptions.flags.transmissao && <option value="transmissao">Com transmissão</option>}
+                  {facetOptions.flags.demaisTransmissao && <option value="demaisTransmissao">Demais status</option>}
+                </optgroup>
+              )}
+              {(facetOptions.flags.apoio || facetOptions.flags.demais) && (
+                <optgroup label="Apoio">
+                  {facetOptions.flags.apoio && <option value="apoio">É ponto de apoio</option>}
+                  {facetOptions.flags.demais && <option value="demais">Demais status</option>}
+                </optgroup>
+              )}
+              {facetOptions.flags.apoioTransmissao && (
+                <optgroup label="Apoio + transmissão">
+                  <option value="apoioTransmissao">Apoio e transmissão</option>
+                </optgroup>
+              )}
             </select>
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
           </div>
@@ -341,12 +360,18 @@ export default function PontosApoioPanel({
                     <ApoioBadge value={p.apoio} />
                   </td>
                   <td className="px-4 py-[11px] text-center">
-                    {p.transmissao ? (
+                    {!p.transmissao ? (
+                      <span className="text-ink-4">—</span>
+                    ) : p.transmissaoRaw.toUpperCase() === 'TRANSMISSÃO' ? (
                       <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold rounded-[4px] px-2 py-0.5 text-accent bg-accent-soft border border-accent-soft-border">
                         <Radio size={11} /> Sim
                       </span>
+                    ) : p.transmissaoRaw.toUpperCase() === 'REMOVER' ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold rounded-[4px] px-2 py-0.5 text-danger bg-danger-soft border border-danger-border">
+                        <X size={11} /> Remover
+                      </span>
                     ) : (
-                      <span className="text-ink-4">—</span>
+                      <span className="whitespace-normal break-words leading-snug text-ink-2">{p.transmissaoRaw}</span>
                     )}
                   </td>
                 </tr>
