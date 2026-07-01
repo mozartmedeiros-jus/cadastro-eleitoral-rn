@@ -95,6 +95,26 @@ gradiente/sombra/glow, numerais tabulares (`.num`), contraste AA, tema claro/esc
 
 ### Log de execução (Cadastro)
 
+- **2026-07-01 (visão "Apoio & Transmissão": coluna com valor real, badge REMOVER, filtro por status)**:
+  a pedido do usuário, ajustes na visão de Pontos de Apoio da página `/` (`PontosApoioPanel.tsx`,
+  `pontos-apoio-csv.ts`, CSV ao vivo — sem Firestore/rules) e rename do seletor.
+  - **Coluna Transmissão** passou a exibir o **valor bruto** do CSV (novo campo `transmissaoRaw`; o
+    boolean `transmissao` segue como "tem valor"): `TRANSMISSÃO` → badge verde "Sim"; `REMOVER` →
+    badge vermelho **"✕ Remover"** (mesmo padrão do "✕ Excluir" do Apoio); demais valores → o texto real.
+  - **Filtro de características** agrupado por `optgroup` (**Transmissão** / **Apoio** / **Apoio +
+    transmissão**). "Com transmissão" e "Demais status" da Transmissão viraram **disjuntos** (só
+    `TRANSMISSÃO` × os demais), espelhando `É ponto de apoio` × `Demais status` do Apoio; novo flag
+    facetado `demaisTransmissao`, coberto pelo auto-clear genérico.
+  - **KPI "Transmissão"** conta só locais com valor `TRANSMISSÃO` (paralelo ao KPI Apoio, que conta
+    só `APOIO`) — coerente com o filtro "Com transmissão".
+  - **Seletor de visão** renomeado de "Pontos de Apoio" para **"Apoio & Transmissão"** (`CadastroClient.tsx`;
+    `whitespace-nowrap` cresce o botão). Export CSV coerente com a exibição (com escape do valor bruto).
+  - Só lógica de filtro/apresentação + 1 campo novo por doc; tokens DSGov, sem hex. `npm run build` OK;
+    múltiplos `firebase deploy --only hosting` em produção ao longo da sessão
+    (`https://eleicoes2026-dadoszonas.web.app`). Também nesta sessão: statusline do Claude Code
+    replicada do projeto `dashboard` (`.claude/statusline-command.sh` + `settings.json`).
+  - **Git:** integrado à `main` via **PR #40** (`feat/apoio-transmissao`, 2 commits — feature +
+    statusline), merge fast-forward `f2f87cf` (state MERGED); branch removida (local e remota).
 - **2026-06-30 (SERPRO: histórico de 2 versões + navegação na tabela + carga 0627)**: a pedido do
   usuário, a tela **Dados SERPRO** (`/gestao-orcamentaria/dados-serpro`, `OrcamentoClient.tsx`,
   coleção `opl_empenhos`) ganhou navegação por **versões** da carga e a preservação de histórico
